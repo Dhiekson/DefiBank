@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Menu, X } from 'lucide-react';
 import UserProfile from './UserProfile';
@@ -8,11 +8,12 @@ import UserProfile from './UserProfile';
 const Navbar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const location = useLocation();
 
   const navLinks = [
     { name: 'Home', href: '/' },
-    { name: 'Serviços', href: '#services' },
-    { name: 'Carteira', href: '#wallet' },
+    { name: 'Serviços', href: '/#services' },
+    { name: 'Carteira', href: '/#wallet' },
     { name: 'Transações', href: '#' },
     { name: 'Suporte', href: '#' },
   ];
@@ -32,8 +33,27 @@ const Navbar: React.FC = () => {
     };
   }, []);
 
+  // Fechar o menu móvel quando mudar de rota
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location]);
+
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (href.startsWith('/#')) {
+      e.preventDefault();
+      const id = href.substring(2);
+      const element = document.getElementById(id);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+        setIsMobileMenuOpen(false);
+      } else if (location.pathname !== '/') {
+        window.location.href = href;
+      }
+    }
   };
 
   return (
@@ -52,6 +72,7 @@ const Navbar: React.FC = () => {
               key={link.name} 
               href={link.href} 
               className="nav-link font-medium"
+              onClick={(e) => handleNavClick(e, link.href)}
             >
               {link.name}
             </a>
@@ -84,7 +105,7 @@ const Navbar: React.FC = () => {
               key={link.name} 
               href={link.href} 
               className="py-2 text-bank-navy font-medium"
-              onClick={() => setIsMobileMenuOpen(false)}
+              onClick={(e) => handleNavClick(e, link.href)}
             >
               {link.name}
             </a>
