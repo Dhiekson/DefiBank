@@ -1,14 +1,16 @@
 
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
-import { Menu, X, ChevronDown } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
+import UserProfile from './UserProfile';
 
 const Navbar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const navLinks = [
-    { name: 'Home', href: '#' },
+    { name: 'Home', href: '/' },
     { name: 'Serviços', href: '#services' },
     { name: 'Carteira', href: '#wallet' },
     { name: 'Transações', href: '#' },
@@ -40,7 +42,7 @@ const Navbar: React.FC = () => {
     }`}>
       <div className="container mx-auto px-4 flex items-center justify-between">
         <div className="flex items-center">
-          <a href="#" className="font-bold text-2xl text-gradient">DeFiBank</a>
+          <Link to="/" className="font-bold text-2xl text-gradient">DeFiBank</Link>
         </div>
 
         {/* Desktop Navigation */}
@@ -56,13 +58,8 @@ const Navbar: React.FC = () => {
           ))}
         </nav>
 
-        <div className="hidden md:flex items-center space-x-4">
-          <Button variant="outline" className="glass-button">
-            Entrar
-          </Button>
-          <Button className="primary-button">
-            Acesso à Carteira
-          </Button>
+        <div className="hidden md:flex items-center">
+          <UserProfile />
         </div>
 
         {/* Mobile Menu Button */}
@@ -92,13 +89,8 @@ const Navbar: React.FC = () => {
               {link.name}
             </a>
           ))}
-          <div className="pt-2 flex flex-col space-y-3">
-            <Button variant="outline" className="w-full justify-center">
-              Entrar
-            </Button>
-            <Button className="w-full bg-bank-blue hover:bg-bank-blue-light justify-center">
-              Acesso à Carteira
-            </Button>
+          <div className="pt-4">
+            <UserProfile />
           </div>
         </nav>
       </div>
