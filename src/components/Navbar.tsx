@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Menu, X } from 'lucide-react';
 import UserProfile from './UserProfile';
@@ -9,13 +9,14 @@ const Navbar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const navLinks = [
     { name: 'Home', href: '/' },
     { name: 'Serviços', href: '/#services' },
-    { name: 'Carteira', href: '/#wallet' },
-    { name: 'Transações', href: '#' },
-    { name: 'Suporte', href: '#' },
+    { name: 'Carteira', href: '/wallet' },
+    { name: 'Transações', href: '/transactions' },
+    { name: 'Suporte', href: '/support' },
   ];
 
   useEffect(() => {
@@ -46,13 +47,23 @@ const Navbar: React.FC = () => {
     if (href.startsWith('/#')) {
       e.preventDefault();
       const id = href.substring(2);
-      const element = document.getElementById(id);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth' });
-        setIsMobileMenuOpen(false);
-      } else if (location.pathname !== '/') {
-        window.location.href = href;
+      
+      if (location.pathname !== '/') {
+        navigate('/');
+        // Aguardar o carregamento da página inicial antes de rolar
+        setTimeout(() => {
+          const element = document.getElementById(id);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth' });
+          }
+        }, 100);
+      } else {
+        const element = document.getElementById(id);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth' });
+        }
       }
+      setIsMobileMenuOpen(false);
     }
   };
 
