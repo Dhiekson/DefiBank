@@ -24,23 +24,49 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { format } from 'date-fns';
+import { pt } from 'date-fns/locale';
 
 interface Transaction {
   id: string;
-  type: 'in' | 'out';
+  type: 'deposit' | 'withdrawal' | 'transfer_in' | 'transfer_out' | 'conversion';
   amount: number;
   description: string;
-  date: string;
-  status: 'completed' | 'pending';
+  status: 'pending' | 'completed' | 'failed';
+  created_at: string;
+  recipient_id?: string;
 }
+
+const formatTransactionType = (type: string): 'in' | 'out' => {
+  if (type === 'deposit' || type === 'transfer_in') {
+    return 'in';
+  }
+  return 'out';
+};
+
+const formatTransactionDate = (dateString: string): string => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (date.toDateString() === now.toDateString()) {
+    return `Hoje, ${format(date, 'HH:mm')}`;
+  } else if (date.toDateString() === yesterday.toDateString()) {
+    return `Ontem, ${format(date, 'HH:mm')}`;
+  } else {
+    return format(date, 'dd/MM/yyyy', { locale: pt });
+  }
+};
 
 const TransactionItem: React.FC<{
   type: 'in' | 'out';
   amount: number;
   description: string;
   date: string;
-  status?: 'completed' | 'pending';
-}> = ({ type, amount, description, date, status = 'completed' }) => {
+  status: 'completed' | 'pending' | 'failed';
+}> = ({ type, amount, description, date, status }) => {
   return (
     <div className="p-4 border-b border-gray-100 flex items-center justify-between">
       <div className="flex items-center gap-3">
@@ -66,6 +92,12 @@ const TransactionItem: React.FC<{
             <span>Pendente</span>
           </div>
         )}
+        {status === 'failed' && (
+          <div className="flex items-center text-red-600 text-sm">
+            <Clock size={12} className="mr-1" />
+            <span>Falhou</span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -85,12 +117,13 @@ const Transactions: React.FC = () => {
   const [asset, setAsset] = useState("BRL");
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
     if (!isLoading && !user) {
       navigate('/auth');
-    } else {
-      // Carregar transações (simulado)
+    } else if (user) {
+      // Carregar transações reais
       loadTransactions();
       
       // Verificar se há uma ação específica a ser executada
@@ -102,63 +135,41 @@ const Transactions: React.FC = () => {
     }
   }, [user, isLoading, navigate, location.state]);
 
-  const loadTransactions = () => {
-    // Dados simulados para demonstração
-    const mockTransactions: Transaction[] = [
-      {
-        id: '1',
-        type: 'in',
-        amount: 1250.00,
-        description: 'Depósito recebido',
-        date: 'Hoje, 14:30',
-        status: 'completed'
-      },
-      {
-        id: '2',
-        type: 'out',
-        amount: 450.00,
-        description: 'Transferência para João Silva',
-        date: 'Ontem, 09:15',
-        status: 'completed'
-      },
-      {
-        id: '3',
-        type: 'out',
-        amount: 120.00,
-        description: 'Compra de Bitcoin',
-        date: '22/03/2025',
-        status: 'completed'
-      },
-      {
-        id: '4',
-        type: 'in',
-        amount: 890.00,
-        description: 'Venda de Ethereum',
-        date: '20/03/2025',
-        status: 'completed'
-      },
-      {
-        id: '5',
-        type: 'in',
-        amount: 350.00,
-        description: 'Recompensa de staking',
-        date: '18/03/2025',
-        status: 'pending'
-      },
-      {
-        id: '6',
-        type: 'out',
-        amount: 75.00,
-        description: 'Taxa de conversão',
-        date: '15/03/2025',
-        status: 'completed'
+  const loadTransactions = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) {
+        throw error;
       }
-    ];
-    
-    setTransactions(mockTransactions);
+      
+      setTransactions(data || []);
+    } catch (error: any) {
+      console.error('Erro ao carregar transações:', error.message);
+      toast({
+        title: "Erro ao carregar transações",
+        description: "Não foi possível carregar o histórico de transações.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleSendMoney = () => {
+  const handleSendMoney = async () => {
+    if (!user || !user.id) {
+      toast({
+        title: "Não autenticado",
+        description: "Você precisa estar logado para realizar transferências.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (!amount || parseFloat(amount) <= 0 || !recipient || !description) {
       toast({
         title: "Dados incompletos",
@@ -170,35 +181,70 @@ const Transactions: React.FC = () => {
     
     setIsSubmitting(true);
     
-    // Simular envio de transação
-    setTimeout(() => {
-      // Adicionar nova transação à lista
-      const newTransaction: Transaction = {
-        id: Date.now().toString(),
-        type: 'out',
-        amount: parseFloat(amount),
-        description: `Transferência para ${recipient}: ${description}`,
-        date: 'Agora mesmo',
-        status: 'completed'
-      };
+    try {
+      // Primeiro, encontrar o usuário destinatário pelo nome ou email
+      const { data: recipientData, error: recipientError } = await supabase
+        .from('profiles')
+        .select('id')
+        .ilike('name', `%${recipient}%`)
+        .limit(1);
+
+      if (recipientError || !recipientData || recipientData.length === 0) {
+        throw new Error('Destinatário não encontrado. Verifique o nome informado.');
+      }
+
+      const recipientId = recipientData[0].id;
       
-      setTransactions(prev => [newTransaction, ...prev]);
+      // Chamar a função RPC para processar a transferência
+      const { data, error } = await supabase.rpc(
+        'process_transfer',
+        {
+          p_sender_id: user.id,
+          p_recipient_id: recipientId,
+          p_amount: parseFloat(amount),
+          p_description: description
+        }
+      );
+
+      if (error) {
+        throw error;
+      }
+      
+      // Atualizar a lista de transações
+      loadTransactions();
       
       // Limpar formulário e fechar diálogo
       setAmount("");
       setRecipient("");
       setDescription("");
       setShowSendDialog(false);
-      setIsSubmitting(false);
       
       toast({
         title: "Transferência realizada",
-        description: `R$ ${parseFloat(amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} enviados com sucesso para ${recipient}.`
+        description: `R$ ${parseFloat(amount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} enviados com sucesso.`
       });
-    }, 1500);
+      
+    } catch (error: any) {
+      toast({
+        title: "Erro na transferência",
+        description: error.message || "Não foi possível completar a transferência. Verifique os dados e tente novamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleReceiveMoney = () => {
+  const handleReceiveMoney = async () => {
+    if (!user || !user.id) {
+      toast({
+        title: "Não autenticado",
+        description: "Você precisa estar logado para solicitar transferências.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (!amount || parseFloat(amount) <= 0 || !description) {
       toast({
         title: "Dados incompletos",
@@ -210,40 +256,55 @@ const Transactions: React.FC = () => {
     
     setIsSubmitting(true);
     
-    // Simular recebimento
-    setTimeout(() => {
-      // Gerar código QR simulado
-      const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=defibank:${user?.id}:${amount}:${description}`;
+    try {
+      // Gerar código QR com os dados do usuário e valor
+      const userId = user.id;
+      const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=defibank:${userId}:${amount}:${description}`;
       
-      // Mostrar notificação com link para QR code
-      toast({
-        title: "Solicitação de depósito criada",
-        description: "Compartilhe o código QR ou o link abaixo para receber o pagamento."
-      });
+      // Criar uma transação pendente
+      const { data, error } = await supabase
+        .from('transactions')
+        .insert([
+          {
+            user_id: userId,
+            type: 'transfer_in',
+            amount: parseFloat(amount),
+            description: description,
+            status: 'pending'
+          }
+        ]);
+
+      if (error) {
+        throw error;
+      }
       
-      // Adicionar transação pendente
-      const newTransaction: Transaction = {
-        id: Date.now().toString(),
-        type: 'in',
-        amount: parseFloat(amount),
-        description: description,
-        date: 'Agora mesmo',
-        status: 'pending'
-      };
-      
-      setTransactions(prev => [newTransaction, ...prev]);
+      // Atualizar a lista de transações
+      loadTransactions();
       
       // Limpar formulário e fechar diálogo
       setAmount("");
       setDescription("");
       setShowReceiveDialog(false);
+      
+      toast({
+        title: "Solicitação de depósito criada",
+        description: "Compartilhe o código QR ou o link abaixo para receber o pagamento."
+      });
+      
+    } catch (error: any) {
+      toast({
+        title: "Erro na solicitação",
+        description: error.message || "Não foi possível criar a solicitação de pagamento.",
+        variant: "destructive"
+      });
+    } finally {
       setIsSubmitting(false);
-    }, 1500);
+    }
   };
 
   const filteredTransactions = searchTerm 
     ? transactions.filter(t => 
-        t.description.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        t.description?.toLowerCase().includes(searchTerm.toLowerCase()) || 
         t.amount.toString().includes(searchTerm)
       )
     : transactions;
@@ -300,9 +361,13 @@ const Transactions: React.FC = () => {
                   <Filter size={14} />
                   <span>Filtrar</span>
                 </Button>
-                <Button size="sm" className="flex items-center gap-1">
+                <Button 
+                  size="sm" 
+                  className="flex items-center gap-1"
+                  onClick={loadTransactions}
+                >
                   <Download size={14} />
-                  <span>Exportar</span>
+                  <span>Atualizar</span>
                 </Button>
               </div>
             </div>
@@ -312,10 +377,10 @@ const Transactions: React.FC = () => {
                 filteredTransactions.map((transaction) => (
                   <TransactionItem 
                     key={transaction.id}
-                    type={transaction.type} 
+                    type={formatTransactionType(transaction.type)} 
                     amount={transaction.amount} 
-                    description={transaction.description} 
-                    date={transaction.date}
+                    description={transaction.description || "Transação"} 
+                    date={formatTransactionDate(transaction.created_at)}
                     status={transaction.status}
                   />
                 ))
@@ -382,7 +447,7 @@ const Transactions: React.FC = () => {
               </Label>
               <Input
                 id="recipient"
-                placeholder="Nome ou chave PIX"
+                placeholder="Nome ou email"
                 className="col-span-3"
                 value={recipient}
                 onChange={(e) => setRecipient(e.target.value)}

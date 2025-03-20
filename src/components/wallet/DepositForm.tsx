@@ -3,6 +3,8 @@ import React, { useState } from 'react';
 import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 interface DepositFormProps {
   onSuccess: (amount: number) => void;
@@ -11,6 +13,7 @@ interface DepositFormProps {
 const DepositForm: React.FC<DepositFormProps> = ({ onSuccess }) => {
   const stripe = useStripe();
   const elements = useElements();
+  const { user } = useAuth();
   const [amount, setAmount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const { toast } = useToast();
@@ -18,28 +21,58 @@ const DepositForm: React.FC<DepositFormProps> = ({ onSuccess }) => {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!stripe || !elements) {
+    if (!stripe || !elements || !user) {
+      return;
+    }
+
+    const cardElement = elements.getElement(CardElement);
+    
+    if (!cardElement) {
+      toast({
+        title: "Erro no formulário",
+        description: "Dados do cartão inválidos.",
+        variant: "destructive"
+      });
       return;
     }
 
     setIsLoading(true);
 
     try {
-      // In a real app, you would call your backend API to create a payment intent
-      // For demo purposes, we'll just simulate success
-      setTimeout(() => {
-        setIsLoading(false);
-        toast({
-          title: "Depósito realizado",
-          description: `Depósito de R$ ${amount.toFixed(2)} realizado com sucesso.`
-        });
-        onSuccess(amount);
-      }, 1500);
-    } catch (error) {
+      // Em um cenário real, você faria uma chamada para seu backend
+      // para criar um Payment Intent no Stripe e retornar o client_secret
+      
+      // Para simular, estamos processando diretamente a transação
+      // Em produção, NUNCA processe pagamentos diretamente no frontend
+      
+      // Chamar a função RPC para processar o depósito
+      const { data, error } = await supabase.rpc(
+        'process_deposit',
+        {
+          p_user_id: user.id,
+          p_amount: amount,
+          p_description: 'Depósito via cartão',
+          p_metadata: { payment_method: 'card' }
+        }
+      );
+
+      if (error) {
+        throw error;
+      }
+      
       setIsLoading(false);
       toast({
+        title: "Depósito realizado",
+        description: `Depósito de R$ ${amount.toFixed(2)} realizado com sucesso.`
+      });
+      
+      onSuccess(amount);
+    } catch (error: any) {
+      setIsLoading(false);
+      console.error('Erro ao processar depósito:', error);
+      toast({
         title: "Erro no depósito",
-        description: "Não foi possível processar seu depósito. Tente novamente.",
+        description: error.message || "Não foi possível processar seu depósito. Tente novamente.",
         variant: "destructive"
       });
     }

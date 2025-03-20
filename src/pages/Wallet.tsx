@@ -16,11 +16,12 @@ import TransactionList from '@/components/wallet/TransactionList';
 
 interface Transaction {
   id: string;
-  type: 'in' | 'out';
+  type: 'deposit' | 'withdrawal' | 'transfer_in' | 'transfer_out' | 'conversion';
   amount: number;
   description: string;
-  date: string;
-  status: 'completed' | 'pending';
+  status: 'pending' | 'completed' | 'failed';
+  created_at: string;
+  recipient_id?: string;
 }
 
 interface Asset {
@@ -33,106 +34,166 @@ interface Asset {
   icon: React.ReactNode;
 }
 
+const getAssetIcon = (symbol: string) => {
+  switch (symbol.toUpperCase()) {
+    case 'BTC':
+      return <Bitcoin size={24} className="text-amber-600" />;
+    case 'ETH':
+      return <Coins size={24} className="text-blue-600" />;
+    default:
+      return <Coins size={24} className="text-gray-600" />;
+  }
+};
+
 const Wallet: React.FC = () => {
   const { user, isLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [totalBalance, setTotalBalance] = useState(38659.42);
   const [refreshing, setRefreshing] = useState(false);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
-
-  const assets: Asset[] = [
-    {
-      id: '1',
-      name: 'Bitcoin',
-      symbol: 'BTC',
-      amount: 0.431,
-      value: 22458.13,
-      change: 3.2,
-      icon: <Bitcoin size={24} className="text-amber-600" />
-    },
-    {
-      id: '2',
-      name: 'Ethereum',
-      symbol: 'ETH',
-      amount: 3.21,
-      value: 9845.29,
-      change: 1.8,
-      icon: <Coins size={24} className="text-blue-600" />
-    }
-  ];
+  const [userAssets, setUserAssets] = useState<Asset[]>([]);
+  const [isLoadingData, setIsLoadingData] = useState(true);
 
   useEffect(() => {
     if (!isLoading && !user) {
       navigate('/auth');
     } else if (user) {
-      loadRecentTransactions();
+      loadWalletData();
     }
   }, [user, isLoading, navigate]);
 
+  const loadWalletData = async () => {
+    if (!user) return;
+    
+    setIsLoadingData(true);
+    await Promise.all([
+      loadRecentTransactions(),
+      loadUserAssets()
+    ]);
+    setIsLoadingData(false);
+  };
+
   const loadRecentTransactions = async () => {
-    const mockTransactions: Transaction[] = [
-      {
-        id: '1',
-        type: 'in',
-        amount: 1250.00,
-        description: 'Depósito recebido',
-        date: 'Hoje, 14:30',
-        status: 'completed'
-      },
-      {
-        id: '2',
-        type: 'out',
-        amount: 450.00,
-        description: 'Transferência para João Silva',
-        date: 'Ontem, 09:15',
-        status: 'completed'
-      },
-      {
-        id: '3',
-        type: 'in',
-        amount: 350.00,
-        description: 'Recompensa de staking',
-        date: '18/03/2025',
-        status: 'pending'
-      }
-    ];
-    
-    setRecentTransactions(mockTransactions);
-  };
-
-  const handleRefresh = () => {
-    setRefreshing(true);
-    
-    setTimeout(() => {
-      const newBalance = totalBalance + (Math.random() * 100 - 50);
-      setTotalBalance(Number(newBalance.toFixed(2)));
-      setRefreshing(false);
+    try {
+      const { data, error } = await supabase
+        .from('transactions')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(3);
       
+      if (error) {
+        throw error;
+      }
+      
+      setRecentTransactions(data || []);
+    } catch (error: any) {
+      console.error('Erro ao carregar transações:', error.message);
       toast({
-        title: "Saldo atualizado",
-        description: "Seus dados foram atualizados com sucesso."
+        title: "Erro ao carregar transações",
+        description: "Não foi possível carregar o histórico de transações.",
+        variant: "destructive"
       });
-    }, 1000);
+    }
   };
 
-  const handleDeposit = (amount: number) => {
-    const newBalance = totalBalance + amount;
-    setTotalBalance(Number(newBalance.toFixed(2)));
-    
-    const newTransaction: Transaction = {
-      id: Date.now().toString(),
-      type: 'in',
-      amount: amount,
-      description: 'Depósito via cartão',
-      date: 'Hoje',
-      status: 'completed'
-    };
-    
-    setRecentTransactions([newTransaction, ...recentTransactions]);
+  const loadUserAssets = async () => {
+    try {
+      // Buscar os ativos do usuário
+      const { data: userAssetsData, error: userAssetsError } = await supabase
+        .from('user_assets')
+        .select(`
+          id,
+          amount,
+          assets (
+            id,
+            name,
+            symbol,
+            icon
+          )
+        `)
+        .eq('user_id', user?.id);
+      
+      if (userAssetsError) {
+        throw userAssetsError;
+      }
+      
+      if (!userAssetsData || userAssetsData.length === 0) {
+        // Se o usuário não tiver ativos, inicializamos com os ativos disponíveis
+        const { data: assetsData, error: assetsError } = await supabase
+          .from('assets')
+          .select('*');
+          
+        if (assetsError) {
+          throw assetsError;
+        }
+        
+        // Criar entradas de ativos do usuário com valores zerados
+        if (assetsData && assetsData.length > 0) {
+          const assetsList: Asset[] = assetsData.map(asset => ({
+            id: asset.id,
+            name: asset.name,
+            symbol: asset.symbol,
+            amount: 0,
+            value: 0,
+            change: Math.random() * 5 - 1, // Simulação: variação entre -1% e 4%
+            icon: getAssetIcon(asset.symbol)
+          }));
+          
+          setUserAssets(assetsList);
+        }
+      } else {
+        // Processar os ativos do usuário
+        const assetsList: Asset[] = userAssetsData.map(item => {
+          const asset = item.assets as any;
+          // Simular valor de mercado com base na quantidade
+          let value = 0;
+          if (asset.symbol === 'BTC') {
+            value = item.amount * 52100; // Preço simulado do BTC
+          } else if (asset.symbol === 'ETH') {
+            value = item.amount * 3060; // Preço simulado do ETH
+          }
+          
+          return {
+            id: item.id,
+            name: asset.name,
+            symbol: asset.symbol,
+            amount: item.amount,
+            value,
+            change: Math.random() * 5 - 1, // Simulação: variação entre -1% e 4%
+            icon: getAssetIcon(asset.symbol)
+          };
+        });
+        
+        setUserAssets(assetsList);
+      }
+    } catch (error: any) {
+      console.error('Erro ao carregar ativos:', error.message);
+      toast({
+        title: "Erro ao carregar ativos",
+        description: "Não foi possível carregar seus ativos.",
+        variant: "destructive"
+      });
+    }
   };
 
-  if (isLoading) {
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadWalletData();
+    setRefreshing(false);
+    
+    toast({
+      title: "Dados atualizados",
+      description: "Seus dados foram atualizados com sucesso."
+    });
+  };
+
+  const handleDeposit = async (amount: number) => {
+    // Atualização dos dados já é feita pela função RPC no backend
+    // Apenas atualizamos a UI
+    await loadWalletData();
+  };
+
+  if (isLoading || isLoadingData) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p>Carregando...</p>
@@ -149,17 +210,23 @@ const Wallet: React.FC = () => {
           
           <div className="glass-card shadow-glass-xl p-6 md:p-8 mb-8">
             <WalletHeader 
-              totalBalance={totalBalance} 
               refreshing={refreshing} 
               onRefresh={handleRefresh} 
             />
             
             <WalletActions onDeposit={handleDeposit} />
             
-            <AssetsList assets={assets} />
+            <AssetsList assets={userAssets} />
           </div>
           
-          <TransactionList transactions={recentTransactions} />
+          <TransactionList transactions={recentTransactions.map(t => ({
+            id: t.id,
+            type: t.type === 'deposit' || t.type === 'transfer_in' ? 'in' : 'out',
+            amount: t.amount,
+            description: t.description || 'Transação',
+            date: new Date(t.created_at).toLocaleDateString('pt-BR'),
+            status: t.status
+          }))} />
         </div>
       </div>
       <Footer />

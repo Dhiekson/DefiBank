@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import DepositForm from '@/components/wallet/DepositForm';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface WalletActionsProps {
   onDeposit: (amount: number) => void;
@@ -14,16 +15,42 @@ interface WalletActionsProps {
 const WalletActions: React.FC<WalletActionsProps> = ({ onDeposit }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const handleSendMoney = () => {
+    if (!user) {
+      toast({
+        title: "Não autenticado",
+        description: "Você precisa estar logado para enviar dinheiro.",
+        variant: "destructive"
+      });
+      return;
+    }
     navigate('/transactions', { state: { action: 'send' } });
   };
 
   const handleReceiveMoney = () => {
+    if (!user) {
+      toast({
+        title: "Não autenticado",
+        description: "Você precisa estar logado para receber dinheiro.",
+        variant: "destructive"
+      });
+      return;
+    }
     navigate('/transactions', { state: { action: 'receive' } });
   };
 
   const handleConvertMoney = () => {
+    if (!user) {
+      toast({
+        title: "Não autenticado",
+        description: "Você precisa estar logado para converter moedas.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     toast({
       title: "Conversão",
       description: "Funcionalidade de conversão será implementada em breve."
