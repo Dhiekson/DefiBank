@@ -4,7 +4,8 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements } from '@stripe/react-stripe-js';
 
 // Replace with your actual Stripe publishable key
-const stripePromise = loadStripe('pk_test_YOUR_STRIPE_PUBLISHABLE_KEY');
+// For testing purposes, we can use the Stripe test publishable key which starts with pk_test_
+const stripePromise = loadStripe('pk_test_51O3EhhH2LfgXuiupUj3hbOBJO7wqSGRcCaVIj0SnSZlkbadoUmZbxsHKR5RGiLxm7pWJ2wA9m0SN3QVbK7LzWhIo004cK4oETP');
 
 interface StripeProviderProps {
   children: ReactNode;
