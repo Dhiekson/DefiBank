@@ -1,15 +1,13 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { ArrowUpRight, ArrowDownRight, RefreshCcw, ChevronRight, Bitcoin, Coins } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, RefreshCcw, ChevronRight, Bitcoin, Coins, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
-// Interface para os dados de transação
 interface Transaction {
   id: string;
   type: 'in' | 'out';
@@ -19,7 +17,6 @@ interface Transaction {
   status: 'completed' | 'pending';
 }
 
-// Interface para os dados de ativos
 interface Asset {
   id: string;
   name: string;
@@ -38,7 +35,6 @@ const Wallet: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
 
-  // Dados mockados de ativos
   const assets: Asset[] = [
     {
       id: '1',
@@ -64,14 +60,11 @@ const Wallet: React.FC = () => {
     if (!isLoading && !user) {
       navigate('/auth');
     } else if (user) {
-      // Carregar dados de transações recentes (simulado)
       loadRecentTransactions();
     }
   }, [user, isLoading, navigate]);
 
   const loadRecentTransactions = async () => {
-    // Simulação de carregamento de transações
-    // Em um cenário real, isso seria carregado do Supabase
     const mockTransactions: Transaction[] = [
       {
         id: '1',
@@ -105,7 +98,6 @@ const Wallet: React.FC = () => {
   const handleRefresh = () => {
     setRefreshing(true);
     
-    // Simular atualização de dados
     setTimeout(() => {
       const newBalance = totalBalance + (Math.random() * 100 - 50);
       setTotalBalance(Number(newBalance.toFixed(2)));
@@ -228,7 +220,6 @@ const Wallet: React.FC = () => {
             </div>
           </div>
           
-          {/* Transações Recentes */}
           <div className="mb-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-semibold text-bank-navy">Transações Recentes</h2>
