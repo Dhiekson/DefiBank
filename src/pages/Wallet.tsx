@@ -3,10 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { ArrowUpRight, ArrowDownRight, RefreshCcw, ChevronRight, Bitcoin, Coins, Clock } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, RefreshCcw, ChevronRight, Bitcoin, Coins, Clock, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import DepositForm from '@/components/wallet/DepositForm';
 
 interface Transaction {
   id: string;
@@ -132,6 +134,22 @@ const Wallet: React.FC = () => {
     });
   };
 
+  const handleDeposit = (amount: number) => {
+    const newBalance = totalBalance + amount;
+    setTotalBalance(Number(newBalance.toFixed(2)));
+    
+    const newTransaction: Transaction = {
+      id: Date.now().toString(),
+      type: 'in',
+      amount: amount,
+      description: 'Depósito via cartão',
+      date: 'Hoje',
+      status: 'completed'
+    };
+    
+    setRecentTransactions([newTransaction, ...recentTransactions]);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -179,6 +197,20 @@ const Wallet: React.FC = () => {
                 <ArrowDownRight size={14} className="mr-1.5" />
                 Receber
               </Button>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button size="sm" className="bg-bank-blue text-white hover:bg-bank-blue-light rounded-full">
+                    <CreditCard size={14} className="mr-1.5" />
+                    Depositar
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Depositar via cartão</DialogTitle>
+                  </DialogHeader>
+                  <DepositForm onSuccess={handleDeposit} />
+                </DialogContent>
+              </Dialog>
               <Button size="sm" variant="outline" className="rounded-full" onClick={handleConvertMoney}>
                 <RefreshCcw size={14} className="mr-1.5" />
                 Converter
