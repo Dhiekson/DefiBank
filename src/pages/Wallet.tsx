@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,7 +13,8 @@ import WalletActions from '@/components/wallet/WalletActions';
 import AssetsList from '@/components/wallet/AssetsList';
 import TransactionList from '@/components/wallet/TransactionList';
 
-import { Transaction, SupabaseTransaction, TransactionItemProps, mapSupabaseTransaction } from '@/types/transaction';
+import { Transaction, SupabaseTransaction, mapSupabaseTransaction } from '@/types/transaction';
+import { formatTransactionType, formatTransactionDate } from '@/utils/transactionFormatters';
 import { Json } from '@/integrations/supabase/types';
 
 interface Asset {
@@ -187,12 +189,13 @@ const Wallet: React.FC = () => {
     );
   }
 
-  const transactionItems: TransactionItemProps[] = recentTransactions.map(t => ({
+  // Map transaction data for the TransactionList component
+  const transactionItems = recentTransactions.map(t => ({
     id: t.id,
-    type: t.type === 'deposit' || t.type === 'transfer_in' ? 'in' : 'out',
+    type: formatTransactionType(t.type),
     amount: t.amount,
     description: t.description || 'Transação',
-    date: new Date(t.created_at).toLocaleDateString('pt-BR'),
+    date: formatTransactionDate(t.created_at),
     status: t.status
   }));
 

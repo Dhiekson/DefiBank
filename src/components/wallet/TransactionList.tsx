@@ -10,7 +10,7 @@ interface Transaction {
   amount: number;
   description: string;
   date: string;
-  status: 'completed' | 'pending';
+  status: 'completed' | 'pending' | 'failed';
 }
 
 interface TransactionListProps {
@@ -59,6 +59,12 @@ const TransactionList: React.FC<TransactionListProps> = ({ transactions }) => {
                 <div className="flex items-center text-amber-600 text-sm">
                   <Clock size={12} className="mr-1" />
                   <span>Pendente</span>
+                </div>
+              )}
+              {transaction.status === 'failed' && (
+                <div className="flex items-center text-red-600 text-sm">
+                  <Clock size={12} className="mr-1" />
+                  <span>Falhou</span>
                 </div>
               )}
             </div>
