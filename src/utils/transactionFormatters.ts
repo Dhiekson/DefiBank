@@ -8,6 +8,7 @@ export const formatTransactionType = (type: string): 'in' | 'out' => {
     case 'withdrawal':
     case 'transfer_out':
     case 'pix_out':
+    case 'conversion':
       return 'out';
     default:
       return 'in'; // Default fallback
