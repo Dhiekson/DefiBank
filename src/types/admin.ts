@@ -29,3 +29,11 @@ export interface AdminTransaction {
   status: string;
   created_at: string;
 }
+
+export interface PixKey {
+  id: string;
+  key_type: 'CPF' | 'EMAIL' | 'PHONE' | 'RANDOM';
+  key_value: string;
+  is_active: boolean;
+  created_at: string;
+}
