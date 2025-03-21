@@ -39,18 +39,19 @@ const UsersTab: React.FC<UsersTabProps> = ({ users, loadUsers }) => {
 
   const handleToggleUserStatus = async (userId: string, currentStatus: string) => {
     try {
-      const newBanStatus = currentStatus === 'Blocked' ? false : true;
+      const newStatus = currentStatus === 'Blocked' ? false : true;
       
+      // Use user_metadata instead of banned property
       const { error } = await supabase.auth.admin.updateUserById(
         userId,
-        { banned: newBanStatus }
+        { user_metadata: { banned: newStatus } }
       );
       
       if (error) throw error;
       
       toast({
         title: "Status atualizado",
-        description: `O usuário foi ${newBanStatus ? 'bloqueado' : 'desbloqueado'} com sucesso.`
+        description: `O usuário foi ${newStatus ? 'bloqueado' : 'desbloqueado'} com sucesso.`
       });
       
       await loadUsers();

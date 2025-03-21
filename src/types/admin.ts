@@ -32,7 +32,7 @@ export interface AdminTransaction {
 
 export interface PixKey {
   id: string;
-  key_type: 'CPF' | 'EMAIL' | 'PHONE' | 'RANDOM';
+  key_type: string;
   key_value: string;
   is_active: boolean;
   created_at: string;

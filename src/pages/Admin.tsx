@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -111,23 +110,26 @@ const AdminPage: React.FC = () => {
         
       if (walletsError) throw walletsError;
       
-      // Merge the data
-      const mergedUsers = profiles.map(profile => {
-        const authUser = authUsers.users.find(u => u.id === profile.id);
-        const wallet = wallets.find(w => w.user_id === profile.id);
+      // Make sure to handle potentially null or undefined data
+      if (profiles && authUsers?.users && wallets) {
+        // Merge the data
+        const mergedUsers = profiles.map(profile => {
+          const authUser = authUsers.users.find(u => u.id === profile.id);
+          const wallet = wallets.find(w => w.user_id === profile.id);
+          
+          return {
+            id: profile.id,
+            name: profile.name || 'No name',
+            email: authUser?.email || 'No email',
+            role: profile.role || 'user',
+            created_at: profile.created_at,
+            balance: wallet?.balance || 0,
+            status: authUser?.user_metadata?.banned ? 'Blocked' : authUser?.email_confirmed_at ? 'Active' : 'Pending'
+          };
+        });
         
-        return {
-          id: profile.id,
-          name: profile.name || 'No name',
-          email: authUser?.email || 'No email',
-          role: profile.role || 'user',
-          created_at: profile.created_at,
-          balance: wallet?.balance || 0,
-          status: authUser?.banned ? 'Blocked' : authUser?.email_confirmed_at ? 'Active' : 'Pending'
-        };
-      });
-      
-      setUsers(mergedUsers);
+        setUsers(mergedUsers);
+      }
     } catch (error) {
       console.error('Error loading users:', error);
       throw error;

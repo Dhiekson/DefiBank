@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Key, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,14 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import PixKeyForm from './PixKeyForm';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-
-interface PixKey {
-  id: string;
-  key_type: 'CPF' | 'EMAIL' | 'PHONE' | 'RANDOM';
-  key_value: string;
-  is_active: boolean;
-  created_at: string;
-}
+import { PixKey } from '@/types/admin';
 
 const PixKeyList: React.FC = () => {
   const [pixKeys, setPixKeys] = useState<PixKey[]>([]);
@@ -44,7 +36,7 @@ const PixKeyList: React.FC = () => {
         throw error;
       }
 
-      setPixKeys(data || []);
+      setPixKeys(data as PixKey[] || []);
     } catch (error: any) {
       console.error('Erro ao carregar chaves PIX:', error.message);
       toast({
