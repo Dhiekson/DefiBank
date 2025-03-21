@@ -6,37 +6,14 @@ import Footer from '@/components/Footer';
 import { Bitcoin, Coins } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Json } from '@/integrations/supabase/types';
 
-// Import the new components
 import WalletHeader from '@/components/wallet/WalletHeader';
 import WalletActions from '@/components/wallet/WalletActions';
 import AssetsList from '@/components/wallet/AssetsList';
 import TransactionList from '@/components/wallet/TransactionList';
 
-interface Transaction {
-  id: string;
-  type: 'deposit' | 'withdrawal' | 'transfer_in' | 'transfer_out' | 'conversion';
-  amount: number;
-  description: string;
-  status: 'pending' | 'completed' | 'failed';
-  created_at: string;
-  recipient_id?: string;
-}
-
-interface SupabaseTransaction {
-  id: string;
-  type: string;
-  amount: number;
-  description: string;
-  status: string;
-  created_at: string;
-  recipient_id?: string;
-  currency: string;
-  updated_at: string;
-  user_id: string;
-  metadata: Json;
-}
+import { Transaction, SupabaseTransaction, TransactionItemProps, mapSupabaseTransaction } from '@/types/transaction';
+import { Json } from '@/integrations/supabase/types';
 
 interface Asset {
   id: string;
@@ -46,15 +23,6 @@ interface Asset {
   value: number;
   change: number;
   icon: React.ReactNode;
-}
-
-interface TransactionItemProps {
-  id: string;
-  type: 'in' | 'out';
-  amount: number;
-  description: string;
-  date: string;
-  status: 'pending' | 'completed' | 'failed';
 }
 
 const getAssetIcon = (symbol: string) => {
@@ -108,15 +76,9 @@ const Wallet: React.FC = () => {
         throw error;
       }
       
-      const formattedTransactions: Transaction[] = (data || []).map((item: SupabaseTransaction) => ({
-        id: item.id,
-        type: item.type as 'deposit' | 'withdrawal' | 'transfer_in' | 'transfer_out' | 'conversion',
-        amount: item.amount,
-        description: item.description || '',
-        status: item.status as 'pending' | 'completed' | 'failed',
-        created_at: item.created_at,
-        recipient_id: item.recipient_id
-      }));
+      const formattedTransactions: Transaction[] = (data || []).map(
+        (item: SupabaseTransaction) => mapSupabaseTransaction(item)
+      );
       
       setRecentTransactions(formattedTransactions);
     } catch (error: any) {
