@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,6 +6,7 @@ import Footer from '@/components/Footer';
 import { Bitcoin, Coins } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { Json } from '@/integrations/supabase/types';
 
 // Import the new components
 import WalletHeader from '@/components/wallet/WalletHeader';
@@ -24,6 +24,20 @@ interface Transaction {
   recipient_id?: string;
 }
 
+interface SupabaseTransaction {
+  id: string;
+  type: string;
+  amount: number;
+  description: string;
+  status: string;
+  created_at: string;
+  recipient_id?: string;
+  currency: string;
+  updated_at: string;
+  user_id: string;
+  metadata: Json;
+}
+
 interface Asset {
   id: string;
   name: string;
@@ -32,6 +46,15 @@ interface Asset {
   value: number;
   change: number;
   icon: React.ReactNode;
+}
+
+interface TransactionItemProps {
+  id: string;
+  type: 'in' | 'out';
+  amount: number;
+  description: string;
+  date: string;
+  status: 'pending' | 'completed' | 'failed';
 }
 
 const getAssetIcon = (symbol: string) => {
@@ -46,31 +69,31 @@ const getAssetIcon = (symbol: string) => {
 };
 
 const Wallet: React.FC = () => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [refreshing, setRefreshing] = useState(false);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [userAssets, setUserAssets] = useState<Asset[]>([]);
-  const [isLoadingData, setIsLoadingData] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (!authLoading && !user) {
       navigate('/auth');
     } else if (user) {
       loadWalletData();
     }
-  }, [user, isLoading, navigate]);
+  }, [user, authLoading, navigate]);
 
   const loadWalletData = async () => {
     if (!user) return;
     
-    setIsLoadingData(true);
+    setIsLoading(true);
     await Promise.all([
       loadRecentTransactions(),
       loadUserAssets()
     ]);
-    setIsLoadingData(false);
+    setIsLoading(false);
   };
 
   const loadRecentTransactions = async () => {
@@ -85,7 +108,17 @@ const Wallet: React.FC = () => {
         throw error;
       }
       
-      setRecentTransactions(data || []);
+      const formattedTransactions: Transaction[] = (data || []).map((item: SupabaseTransaction) => ({
+        id: item.id,
+        type: item.type as 'deposit' | 'withdrawal' | 'transfer_in' | 'transfer_out' | 'conversion',
+        amount: item.amount,
+        description: item.description || '',
+        status: item.status as 'pending' | 'completed' | 'failed',
+        created_at: item.created_at,
+        recipient_id: item.recipient_id
+      }));
+      
+      setRecentTransactions(formattedTransactions);
     } catch (error: any) {
       console.error('Erro ao carregar transações:', error.message);
       toast({
@@ -98,7 +131,6 @@ const Wallet: React.FC = () => {
 
   const loadUserAssets = async () => {
     try {
-      // Buscar os ativos do usuário
       const { data: userAssetsData, error: userAssetsError } = await supabase
         .from('user_assets')
         .select(`
@@ -118,7 +150,6 @@ const Wallet: React.FC = () => {
       }
       
       if (!userAssetsData || userAssetsData.length === 0) {
-        // Se o usuário não tiver ativos, inicializamos com os ativos disponíveis
         const { data: assetsData, error: assetsError } = await supabase
           .from('assets')
           .select('*');
@@ -127,30 +158,25 @@ const Wallet: React.FC = () => {
           throw assetsError;
         }
         
-        // Criar entradas de ativos do usuário com valores zerados
-        if (assetsData && assetsData.length > 0) {
-          const assetsList: Asset[] = assetsData.map(asset => ({
-            id: asset.id,
-            name: asset.name,
-            symbol: asset.symbol,
-            amount: 0,
-            value: 0,
-            change: Math.random() * 5 - 1, // Simulação: variação entre -1% e 4%
-            icon: getAssetIcon(asset.symbol)
-          }));
-          
-          setUserAssets(assetsList);
-        }
+        const assetsList: Asset[] = assetsData.map(asset => ({
+          id: asset.id,
+          name: asset.name,
+          symbol: asset.symbol,
+          amount: 0,
+          value: 0,
+          change: Math.random() * 5 - 1,
+          icon: getAssetIcon(asset.symbol)
+        }));
+        
+        setUserAssets(assetsList);
       } else {
-        // Processar os ativos do usuário
         const assetsList: Asset[] = userAssetsData.map(item => {
           const asset = item.assets as any;
-          // Simular valor de mercado com base na quantidade
           let value = 0;
           if (asset.symbol === 'BTC') {
-            value = item.amount * 52100; // Preço simulado do BTC
+            value = item.amount * 52100;
           } else if (asset.symbol === 'ETH') {
-            value = item.amount * 3060; // Preço simulado do ETH
+            value = item.amount * 3060;
           }
           
           return {
@@ -159,7 +185,7 @@ const Wallet: React.FC = () => {
             symbol: asset.symbol,
             amount: item.amount,
             value,
-            change: Math.random() * 5 - 1, // Simulação: variação entre -1% e 4%
+            change: Math.random() * 5 - 1,
             icon: getAssetIcon(asset.symbol)
           };
         });
@@ -188,18 +214,25 @@ const Wallet: React.FC = () => {
   };
 
   const handleDeposit = async (amount: number) => {
-    // Atualização dos dados já é feita pela função RPC no backend
-    // Apenas atualizamos a UI
     await loadWalletData();
   };
 
-  if (isLoading || isLoadingData) {
+  if (authLoading || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <p>Carregando...</p>
       </div>
     );
   }
+
+  const transactionItems: TransactionItemProps[] = recentTransactions.map(t => ({
+    id: t.id,
+    type: t.type === 'deposit' || t.type === 'transfer_in' ? 'in' : 'out',
+    amount: t.amount,
+    description: t.description || 'Transação',
+    date: new Date(t.created_at).toLocaleDateString('pt-BR'),
+    status: t.status
+  }));
 
   return (
     <div className="min-h-screen bg-background">
@@ -219,14 +252,7 @@ const Wallet: React.FC = () => {
             <AssetsList assets={userAssets} />
           </div>
           
-          <TransactionList transactions={recentTransactions.map(t => ({
-            id: t.id,
-            type: t.type === 'deposit' || t.type === 'transfer_in' ? 'in' : 'out',
-            amount: t.amount,
-            description: t.description || 'Transação',
-            date: new Date(t.created_at).toLocaleDateString('pt-BR'),
-            status: t.status
-          }))} />
+          <TransactionList transactions={transactionItems} />
         </div>
       </div>
       <Footer />

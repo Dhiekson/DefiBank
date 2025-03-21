@@ -27,6 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
+import { Json } from '@/integrations/supabase/types';
 
 interface Transaction {
   id: string;
@@ -36,6 +37,20 @@ interface Transaction {
   status: 'pending' | 'completed' | 'failed';
   created_at: string;
   recipient_id?: string;
+}
+
+interface SupabaseTransaction {
+  id: string;
+  type: string;
+  amount: number;
+  description: string;
+  status: string;
+  created_at: string;
+  recipient_id?: string;
+  currency: string;
+  updated_at: string;
+  user_id: string;
+  metadata: Json;
 }
 
 const formatTransactionType = (type: string): 'in' | 'out' => {
@@ -104,7 +119,7 @@ const TransactionItem: React.FC<{
 };
 
 const Transactions: React.FC = () => {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
@@ -120,7 +135,7 @@ const Transactions: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (!authLoading && !user) {
       navigate('/auth');
     } else if (user) {
       // Carregar transações reais
@@ -133,7 +148,7 @@ const Transactions: React.FC = () => {
         setShowReceiveDialog(true);
       }
     }
-  }, [user, isLoading, navigate, location.state]);
+  }, [user, authLoading, navigate, location.state]);
 
   const loadTransactions = async () => {
     setIsLoading(true);
@@ -147,7 +162,18 @@ const Transactions: React.FC = () => {
         throw error;
       }
       
-      setTransactions(data || []);
+      // Converter os dados do Supabase para o formato Transaction
+      const formattedTransactions: Transaction[] = (data || []).map((item: SupabaseTransaction) => ({
+        id: item.id,
+        type: item.type as 'deposit' | 'withdrawal' | 'transfer_in' | 'transfer_out' | 'conversion',
+        amount: item.amount,
+        description: item.description || '',
+        status: item.status as 'pending' | 'completed' | 'failed',
+        created_at: item.created_at,
+        recipient_id: item.recipient_id
+      }));
+      
+      setTransactions(formattedTransactions);
     } catch (error: any) {
       console.error('Erro ao carregar transações:', error.message);
       toast({
