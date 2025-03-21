@@ -50,3 +50,13 @@ export function isPixKey(obj: any): obj is PixKey {
     'is_active' in obj
   );
 }
+
+export interface PaymentRequest {
+  id: string;
+  user_id: string;
+  amount: number;
+  description: string;
+  status: string;
+  created_at: string;
+  qr_code_url?: string;
+}

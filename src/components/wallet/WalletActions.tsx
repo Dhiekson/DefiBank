@@ -10,9 +10,19 @@ import { useAuth } from '@/contexts/AuthContext';
 
 interface WalletActionsProps {
   onDeposit: (amount: number) => void;
+  showQRCode?: boolean;
+  qrCodeUrl?: string;
+  qrAmount?: number;
+  qrDescription?: string;
 }
 
-const WalletActions: React.FC<WalletActionsProps> = ({ onDeposit }) => {
+const WalletActions: React.FC<WalletActionsProps> = ({ 
+  onDeposit, 
+  showQRCode = false,
+  qrCodeUrl,
+  qrAmount,
+  qrDescription 
+}) => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -51,10 +61,7 @@ const WalletActions: React.FC<WalletActionsProps> = ({ onDeposit }) => {
       return;
     }
     
-    toast({
-      title: "Conversão",
-      description: "Funcionalidade de conversão será implementada em breve."
-    });
+    navigate('/wallet/convert');
   };
 
   return (

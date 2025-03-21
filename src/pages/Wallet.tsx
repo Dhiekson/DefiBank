@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -12,10 +12,11 @@ import WalletHeader from '@/components/wallet/WalletHeader';
 import WalletActions from '@/components/wallet/WalletActions';
 import AssetsList from '@/components/wallet/AssetsList';
 import TransactionList from '@/components/wallet/TransactionList';
+import PixQRCode from '@/components/pix/PixQRCode';
 
 import { Transaction, SupabaseTransaction, mapSupabaseTransaction } from '@/types/transaction';
 import { formatTransactionType, formatTransactionDate } from '@/utils/transactionFormatters';
-import { Json } from '@/integrations/supabase/types';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface Asset {
   id: string;
@@ -41,19 +42,31 @@ const getAssetIcon = (symbol: string) => {
 const Wallet: React.FC = () => {
   const { user, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const [refreshing, setRefreshing] = useState(false);
   const [recentTransactions, setRecentTransactions] = useState<Transaction[]>([]);
   const [userAssets, setUserAssets] = useState<Asset[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [showQRCode, setShowQRCode] = useState(false);
+  
+  // Estado para exibir o QR Code (se fornecido pelo redirecionamento)
+  const qrCodeUrl = location.state?.qrCodeUrl;
+  const qrAmount = location.state?.amount ? parseFloat(location.state.amount) : 0;
+  const qrDescription = location.state?.description || '';
 
   useEffect(() => {
     if (!authLoading && !user) {
       navigate('/auth');
     } else if (user) {
       loadWalletData();
+      
+      // Se temos um QR Code nos parâmetros de estado, mostrar o diálogo
+      if (qrCodeUrl) {
+        setShowQRCode(true);
+      }
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, navigate, qrCodeUrl]);
 
   const loadWalletData = async () => {
     if (!user) return;
@@ -71,6 +84,7 @@ const Wallet: React.FC = () => {
       const { data, error } = await supabase
         .from('transactions')
         .select('*')
+        .eq('user_id', user?.id)
         .order('created_at', { ascending: false })
         .limit(3);
       
@@ -220,6 +234,21 @@ const Wallet: React.FC = () => {
           <TransactionList transactions={transactionItems} />
         </div>
       </div>
+      
+      {/* Modal de QR Code para pagamento */}
+      <Dialog open={showQRCode} onOpenChange={setShowQRCode}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>QR Code para Pagamento</DialogTitle>
+          </DialogHeader>
+          <PixQRCode 
+            amount={qrAmount} 
+            description={qrDescription} 
+            qrCodeUrl={qrCodeUrl} 
+          />
+        </DialogContent>
+      </Dialog>
+      
       <Footer />
     </div>
   );

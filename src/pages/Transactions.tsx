@@ -16,6 +16,7 @@ import ReceiveMoneyDialog from '@/components/transactions/ReceiveMoneyDialog';
 
 // Import types
 import { Transaction, SupabaseTransaction, mapSupabaseTransaction } from '@/types/transaction';
+import { PaymentRequest } from '@/types/admin';
 
 const Transactions: React.FC = () => {
   const { user, isLoading: authLoading } = useAuth();
@@ -179,25 +180,40 @@ const Transactions: React.FC = () => {
     
     try {
       // Gerar código QR com os dados do usuário e valor
-      const userId = user.id;
-      // Unused but kept for future implementation
-      const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=defibank:${userId}:${amount}:${description}`;
+      const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=defibank:${user.id}:${amount}:${description}`;
       
-      // Criar uma transação pendente
+      // Criar uma cobrança no banco de dados
       const { data, error } = await supabase
-        .from('transactions')
+        .from('payment_requests')
         .insert([
           {
-            user_id: userId,
-            type: 'transfer_in',
+            user_id: user.id,
             amount: parseFloat(amount),
             description: description,
-            status: 'pending'
+            status: 'pending',
+            qr_code_url: qrCodeUrl
           }
         ]);
 
       if (error) {
         throw error;
+      }
+      
+      // Criar uma transação pendente para exibir no histórico
+      const { error: transactionError } = await supabase
+        .from('transactions')
+        .insert([
+          {
+            user_id: user.id,
+            type: 'transfer_in',
+            amount: parseFloat(amount),
+            description: `Cobrança: ${description}`,
+            status: 'pending'
+          }
+        ]);
+
+      if (transactionError) {
+        console.error('Erro ao criar transação pendente:', transactionError);
       }
       
       // Atualizar a lista de transações
@@ -208,15 +224,19 @@ const Transactions: React.FC = () => {
       setDescription("");
       setShowReceiveDialog(false);
       
+      // Exibir toast com confirmação e URL do QR Code
       toast({
-        title: "Solicitação de depósito criada",
-        description: "Compartilhe o código QR ou o link abaixo para receber o pagamento."
+        title: "Cobrança criada com sucesso",
+        description: "Um QR Code foi gerado para compartilhar com o pagador."
       });
+      
+      // Redirecionar para a página que exibe o QR Code
+      navigate('/wallet', { state: { qrCodeUrl, amount, description } });
       
     } catch (error: any) {
       toast({
-        title: "Erro na solicitação",
-        description: error.message || "Não foi possível criar a solicitação de pagamento.",
+        title: "Erro na criação da cobrança",
+        description: error.message || "Não foi possível criar a cobrança.",
         variant: "destructive"
       });
     } finally {

@@ -92,7 +92,11 @@ const ReceiveMoneyDialog: React.FC<ReceiveMoneyDialogProps> = ({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button type="submit" onClick={onReceiveMoney} disabled={isSubmitting}>
+          <Button 
+            type="submit" 
+            onClick={onReceiveMoney} 
+            disabled={isSubmitting || !amount || !description}
+          >
             {isSubmitting ? "Criando..." : "Criar cobrança"}
             {!isSubmitting && <ArrowRight className="ml-2 h-4 w-4" />}
           </Button>
