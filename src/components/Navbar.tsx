@@ -1,131 +1,142 @@
 
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Button } from "@/components/ui/button";
-import { Menu, X } from 'lucide-react';
-import UserProfile from './UserProfile';
+import { Link, useLocation } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Menu, X, Home, CreditCard, Building2, Wallet, MessageSquare, QrCode, UserCog } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import UserProfile from '@/components/UserProfile';
+import { useAuth } from '@/contexts/AuthContext';
+import useMobile from '@/hooks/use-mobile';
 
 const Navbar: React.FC = () => {
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
-  const navigate = useNavigate();
+  const isMobile = useMobile();
+  const { user } = useAuth();
 
-  const navLinks = [
-    { name: 'Home', href: '/' },
-    { name: 'Serviços', href: '/#services' },
-    { name: 'Carteira', href: '/wallet' },
-    { name: 'Transações', href: '/transactions' },
-    { name: 'Suporte', href: '/support' },
+  useEffect(() => {
+    setIsOpen(false);
+  }, [location.pathname]);
+
+  // Define routes for the navigation based on authentication state
+  const routes = [
+    {
+      path: '/',
+      name: 'Início',
+      icon: <Home size={16} className="mr-2" />,
+      showAlways: true,
+    },
+    {
+      path: '/wallet',
+      name: 'Carteira',
+      icon: <Wallet size={16} className="mr-2" />,
+      requiresAuth: true,
+    },
+    {
+      path: '/transactions',
+      name: 'Transações',
+      icon: <CreditCard size={16} className="mr-2" />,
+      requiresAuth: true,
+    },
+    {
+      path: '/pix',
+      name: 'PIX',
+      icon: <QrCode size={16} className="mr-2" />,
+      requiresAuth: true,
+    },
+    {
+      path: '/support',
+      name: 'Suporte',
+      icon: <MessageSquare size={16} className="mr-2" />,
+      showAlways: true,
+    },
+    {
+      path: '/admin',
+      name: 'Admin',
+      icon: <UserCog size={16} className="mr-2" />,
+      requiresAdmin: true,
+    }
   ];
 
-  useEffect(() => {
-    const handleScroll = () => {
-      if (window.scrollY > 10) {
-        setIsScrolled(true);
-      } else {
-        setIsScrolled(false);
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }, []);
-
-  // Fechar o menu móvel quando mudar de rota
-  useEffect(() => {
-    setIsMobileMenuOpen(false);
-  }, [location]);
-
-  const toggleMobileMenu = () => {
-    setIsMobileMenuOpen(!isMobileMenuOpen);
-  };
-
-  const handleNavClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
-    if (href.startsWith('/#')) {
-      e.preventDefault();
-      const id = href.substring(2);
-      
-      if (location.pathname !== '/') {
-        navigate('/');
-        // Aguardar o carregamento da página inicial antes de rolar
-        setTimeout(() => {
-          const element = document.getElementById(id);
-          if (element) {
-            element.scrollIntoView({ behavior: 'smooth' });
-          }
-        }, 100);
-      } else {
-        const element = document.getElementById(id);
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth' });
-        }
-      }
-      setIsMobileMenuOpen(false);
-    }
-  };
+  // Filter routes based on authentication state
+  const filteredRoutes = routes.filter(route => {
+    if (route.showAlways) return true;
+    if (route.requiresAuth && user) return true;
+    if (route.requiresAdmin && user && user.user_metadata?.role === 'admin') return true;
+    return false;
+  });
 
   return (
-    <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-      isScrolled ? 'py-3 glass shadow-md' : 'py-6 bg-transparent'
-    }`}>
-      <div className="container mx-auto px-4 flex items-center justify-between">
-        <div className="flex items-center">
-          <Link to="/" className="font-bold text-2xl text-gradient">DeFiBank</Link>
+    <header className="fixed w-full z-50 glass-nav">
+      <div className="container mx-auto px-4">
+        <div className="flex justify-between items-center h-16">
+          {/* Logo */}
+          <Link to="/" className="flex items-center">
+            <Building2 className="h-6 w-6 text-bank-blue" />
+            <span className="ml-2 text-xl font-bold text-bank-navy">DeFiBank</span>
+          </Link>
+
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex space-x-1">
+            {filteredRoutes.map((route) => (
+              <Link key={route.path} to={route.path}>
+                <Button 
+                  variant={location.pathname === route.path ? "default" : "ghost"} 
+                  className={`flex items-center ${location.pathname === route.path ? 'bg-bank-blue text-white' : 'text-bank-navy'}`}
+                >
+                  {route.icon}
+                  {route.name}
+                </Button>
+              </Link>
+            ))}
+          </nav>
+
+          {/* User Profile */}
+          <div className="hidden md:flex items-center">
+            <UserProfile />
+          </div>
+
+          {/* Mobile Menu Button */}
+          <Button 
+            variant="ghost" 
+            size="icon"
+            className="md:hidden"
+            onClick={() => setIsOpen(!isOpen)}
+          >
+            {isOpen ? <X /> : <Menu />}
+          </Button>
         </div>
-
-        {/* Desktop Navigation */}
-        <nav className="hidden md:flex items-center space-x-8">
-          {navLinks.map((link) => (
-            <a 
-              key={link.name} 
-              href={link.href} 
-              className="nav-link font-medium"
-              onClick={(e) => handleNavClick(e, link.href)}
-            >
-              {link.name}
-            </a>
-          ))}
-        </nav>
-
-        <div className="hidden md:flex items-center">
-          <UserProfile />
-        </div>
-
-        {/* Mobile Menu Button */}
-        <button 
-          className="md:hidden text-bank-navy"
-          onClick={toggleMobileMenu}
-          aria-label={isMobileMenuOpen ? "Fechar menu" : "Abrir menu"}
-        >
-          {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
       </div>
 
       {/* Mobile Menu */}
-      <div 
-        className={`md:hidden absolute w-full bg-white/95 backdrop-blur-md shadow-lg transition-all duration-300 ease-in-out overflow-hidden ${
-          isMobileMenuOpen ? 'max-h-[500px] border-b border-gray-200' : 'max-h-0'
-        }`}
-      >
-        <nav className="container mx-auto px-4 py-4 flex flex-col space-y-4">
-          {navLinks.map((link) => (
-            <a 
-              key={link.name} 
-              href={link.href} 
-              className="py-2 text-bank-navy font-medium"
-              onClick={(e) => handleNavClick(e, link.href)}
-            >
-              {link.name}
-            </a>
-          ))}
-          <div className="pt-4">
-            <UserProfile />
-          </div>
-        </nav>
-      </div>
+      <AnimatePresence>
+        {isOpen && isMobile && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="md:hidden bg-white border-t border-gray-100"
+          >
+            <div className="container mx-auto px-4 py-4 space-y-2">
+              {filteredRoutes.map((route) => (
+                <Link key={route.path} to={route.path} className="block">
+                  <Button 
+                    variant={location.pathname === route.path ? "default" : "ghost"} 
+                    className={`w-full justify-start ${location.pathname === route.path ? 'bg-bank-blue text-white' : 'text-bank-navy'}`}
+                  >
+                    {route.icon}
+                    {route.name}
+                  </Button>
+                </Link>
+              ))}
+              <div className="pt-4 border-t border-gray-100">
+                <UserProfile />
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   );
 };
