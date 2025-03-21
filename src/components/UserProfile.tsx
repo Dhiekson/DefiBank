@@ -20,15 +20,24 @@ const UserProfile: React.FC = () => {
 
   const checkAdminStatus = async () => {
     try {
+      // Check if user has role in user_metadata
+      if (user?.user_metadata?.role === 'admin') {
+        setIsAdmin(true);
+        return;
+      }
+
+      // Or check if it's in the profiles table
       const { data, error } = await supabase
         .from('profiles')
-        .select('role')
+        .select('*')
         .eq('id', user?.id)
         .single();
         
       if (error) throw error;
       
-      setIsAdmin(data?.role === 'admin');
+      // Use type assertion to handle the response
+      const profile = data as { role?: string };
+      setIsAdmin(profile?.role === 'admin');
     } catch (error) {
       console.error('Error checking admin status:', error);
     }

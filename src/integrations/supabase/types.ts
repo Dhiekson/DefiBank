@@ -36,12 +36,43 @@ export type Database = {
         }
         Relationships: []
       }
+      pix_keys: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          key_type: string
+          key_value: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          key_type: string
+          key_value: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          key_type?: string
+          key_value?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
           created_at: string
           id: string
           name: string | null
+          role: string | null
           updated_at: string
         }
         Insert: {
@@ -49,6 +80,7 @@ export type Database = {
           created_at?: string
           id: string
           name?: string | null
+          role?: string | null
           updated_at?: string
         }
         Update: {
@@ -56,6 +88,37 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string | null
+          role?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      transaction_limits: {
+        Row: {
+          created_at: string
+          daily_limit: number
+          fee_percentage: number
+          id: string
+          transaction_limit: number
+          transaction_type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          daily_limit?: number
+          fee_percentage?: number
+          id?: string
+          transaction_limit?: number
+          transaction_type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          daily_limit?: number
+          fee_percentage?: number
+          id?: string
+          transaction_limit?: number
+          transaction_type?: string
           updated_at?: string
         }
         Relationships: []
@@ -172,6 +235,15 @@ export type Database = {
           p_amount: number
           p_description?: string
           p_metadata?: Json
+        }
+        Returns: string
+      }
+      process_pix_transfer: {
+        Args: {
+          p_sender_id: string
+          p_pix_key: string
+          p_amount: number
+          p_description?: string
         }
         Returns: string
       }

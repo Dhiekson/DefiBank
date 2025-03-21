@@ -36,4 +36,17 @@ export interface PixKey {
   key_value: string;
   is_active: boolean;
   created_at: string;
+  user_id: string;
+}
+
+// Type guard for checking if an object is a PixKey
+export function isPixKey(obj: any): obj is PixKey {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    'id' in obj &&
+    'key_type' in obj &&
+    'key_value' in obj &&
+    'is_active' in obj
+  );
 }
