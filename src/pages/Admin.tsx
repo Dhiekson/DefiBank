@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -92,9 +93,12 @@ const AdminPage: React.FC = () => {
   const loadUsers = async () => {
     try {
       // First get all users from auth schema
-      const { data: authUsers, error: authError } = await supabase.auth.admin.listUsers();
+      const { data: authUsersData, error: authError } = await supabase.auth.admin.listUsers();
       
       if (authError) throw authError;
+      
+      // Type safety check for authUsers
+      const authUsers = authUsersData?.users || [];
       
       // Then get all profiles with their wallets
       const { data: profiles, error: profilesError } = await supabase
@@ -111,10 +115,10 @@ const AdminPage: React.FC = () => {
       if (walletsError) throw walletsError;
       
       // Make sure to handle potentially null or undefined data
-      if (profiles && authUsers?.users && wallets) {
+      if (profiles && authUsers && wallets) {
         // Merge the data
         const mergedUsers = profiles.map(profile => {
-          const authUser = authUsers.users.find(u => u.id === profile.id);
+          const authUser = authUsers.find(u => u.id === profile.id);
           const wallet = wallets.find(w => w.user_id === profile.id);
           
           return {
