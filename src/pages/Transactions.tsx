@@ -15,7 +15,6 @@ import ReceiveMoneyDialog from '@/components/transactions/ReceiveMoneyDialog';
 
 // Import types
 import { Transaction, SupabaseTransaction, mapSupabaseTransaction } from '@/types/transaction';
-import { PaymentRequest } from '@/types/admin';
 
 const Transactions: React.FC = () => {
   const { user, isLoading: authLoading } = useAuth();
@@ -178,10 +177,10 @@ const Transactions: React.FC = () => {
     setIsSubmitting(true);
     
     try {
-      // Gerar código QR com os dados do usuário e valor
+      // Generate QR code with user data and amount
       const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=defibank:${user.id}:${amount}:${description}`;
       
-      // Using raw query to create payment request since the payment_requests table might not be in TypeScript types yet
+      // Create payment request
       const { data, error } = await supabase
         .from('payment_requests')
         .insert([
@@ -198,7 +197,7 @@ const Transactions: React.FC = () => {
         throw error;
       }
       
-      // Criar uma transação pendente para exibir no histórico
+      // Create a pending transaction to display in history
       const { error: transactionError } = await supabase
         .from('transactions')
         .insert([
@@ -215,21 +214,21 @@ const Transactions: React.FC = () => {
         console.error('Erro ao criar transação pendente:', transactionError);
       }
       
-      // Atualizar a lista de transações
+      // Update transaction list
       loadTransactions();
       
-      // Limpar formulário e fechar diálogo
+      // Clear form and close dialog
       setAmount("");
       setDescription("");
       setShowReceiveDialog(false);
       
-      // Exibir toast com confirmação e URL do QR Code
+      // Show confirmation toast and QR Code URL
       toast({
         title: "Cobrança criada com sucesso",
         description: "Um QR Code foi gerado para compartilhar com o pagador."
       });
       
-      // Redirecionar para a página que exibe o QR Code
+      // Redirect to wallet page showing the QR Code
       navigate('/wallet', { state: { qrCodeUrl, amount, description } });
       
     } catch (error: any) {

@@ -12,7 +12,7 @@ import WalletHeader from '@/components/wallet/WalletHeader';
 import WalletActions from '@/components/wallet/WalletActions';
 import AssetsList from '@/components/wallet/AssetsList';
 import TransactionList from '@/components/wallet/TransactionList';
-import PixQRCode from '@/components/pix/PixQRCode';
+import QRCodeDisplay from '@/components/wallet/QRCodeDisplay';
 
 import { Transaction, SupabaseTransaction, mapSupabaseTransaction } from '@/types/transaction';
 import { formatTransactionType, formatTransactionDate } from '@/utils/transactionFormatters';
@@ -241,7 +241,7 @@ const Wallet: React.FC = () => {
           <DialogHeader>
             <DialogTitle>QR Code para Pagamento</DialogTitle>
           </DialogHeader>
-          <PixQRCode 
+          <QRCodeDisplay 
             amount={qrAmount} 
             description={qrDescription} 
             qrCodeUrl={qrCodeUrl} 

@@ -12,7 +12,6 @@ import Transactions from "./pages/Transactions";
 import NotFound from "./pages/NotFound";
 import Support from "./pages/Support";
 import Wallet from "./pages/Wallet";
-import Pix from "./pages/Pix";
 import Admin from "./pages/Admin";
 
 const queryClient = new QueryClient();
@@ -31,7 +30,6 @@ const App = () => (
               <Route path="/transactions" element={<Transactions />} />
               <Route path="/wallet" element={<Wallet />} />
               <Route path="/support" element={<Support />} />
-              <Route path="/pix" element={<Pix />} />
               <Route path="/admin" element={<Admin />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

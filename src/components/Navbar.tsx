@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Menu, X, Home, CreditCard, Building2, Wallet, MessageSquare, QrCode, UserCog } from 'lucide-react';
+import { Menu, X, Home, CreditCard, Building2, Wallet, MessageSquare, UserCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import UserProfile from '@/components/UserProfile';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,6 +10,8 @@ import useMobile from '@/hooks/use-mobile';
 
 const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [isVisible, setIsVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
   const location = useLocation();
   const isMobile = useMobile();
   const { user } = useAuth();
@@ -17,6 +19,28 @@ const Navbar: React.FC = () => {
   useEffect(() => {
     setIsOpen(false);
   }, [location.pathname]);
+
+  // Handle scroll for hiding/showing the navbar
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      
+      // Show navbar when scrolling up, hide when scrolling down
+      if (currentScrollY > lastScrollY && currentScrollY > 80) {
+        setIsVisible(false);
+      } else {
+        setIsVisible(true);
+      }
+      
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [lastScrollY]);
 
   // Define routes for the navigation based on authentication state
   const routes = [
@@ -36,12 +60,6 @@ const Navbar: React.FC = () => {
       path: '/transactions',
       name: 'Transações',
       icon: <CreditCard size={16} className="mr-2" />,
-      requiresAuth: true,
-    },
-    {
-      path: '/pix',
-      name: 'PIX',
-      icon: <QrCode size={16} className="mr-2" />,
       requiresAuth: true,
     },
     {
@@ -67,7 +85,9 @@ const Navbar: React.FC = () => {
   });
 
   return (
-    <header className="fixed w-full z-50 glass-nav">
+    <header 
+      className={`fixed w-full z-50 glass-nav transition-transform duration-300 ease-in-out ${!isVisible ? '-translate-y-full' : 'translate-y-0'}`}
+    >
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
