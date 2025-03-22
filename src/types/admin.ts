@@ -60,3 +60,16 @@ export interface PaymentRequest {
   created_at: string;
   qr_code_url?: string;
 }
+
+// Type guard for checking if an object is a PaymentRequest
+export function isPaymentRequest(obj: any): obj is PaymentRequest {
+  return (
+    typeof obj === 'object' &&
+    obj !== null &&
+    'id' in obj &&
+    'user_id' in obj &&
+    'amount' in obj &&
+    'description' in obj &&
+    'status' in obj
+  );
+}

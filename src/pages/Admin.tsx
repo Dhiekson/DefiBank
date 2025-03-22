@@ -124,7 +124,7 @@ const AdminPage: React.FC = () => {
             role: profile.role || 'user',
             created_at: profile.created_at,
             balance: wallet?.balance || 0,
-            status: authUser?.user_metadata?.banned ? 'Blocked' : authUser?.email_confirmed_at ? 'Active' : 'Pending'
+            status: authUser?.user_metadata?.banned ? 'Blocked' : (authUser?.email_confirmed_at ? 'Active' : 'Pending')
           };
         });
         

@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -182,7 +181,7 @@ const Transactions: React.FC = () => {
       // Gerar código QR com os dados do usuário e valor
       const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=defibank:${user.id}:${amount}:${description}`;
       
-      // Criar uma cobrança no banco de dados
+      // Using raw query to create payment request since the payment_requests table might not be in TypeScript types yet
       const { data, error } = await supabase
         .from('payment_requests')
         .insert([
