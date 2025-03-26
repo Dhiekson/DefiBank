@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowUpRight, ArrowDownRight, RefreshCcw, CreditCard } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, RefreshCcw, CreditCard, Coins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -63,6 +63,19 @@ const WalletActions: React.FC<WalletActionsProps> = ({
     
     navigate('/wallet/convert');
   };
+  
+  const handleCryptoMarket = () => {
+    if (!user) {
+      toast({
+        title: "Não autenticado",
+        description: "Você precisa estar logado para acessar o mercado de criptomoedas.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    navigate('/crypto');
+  };
 
   return (
     <div className="flex flex-wrap gap-3 mb-8">
@@ -91,6 +104,10 @@ const WalletActions: React.FC<WalletActionsProps> = ({
       <Button size="sm" variant="outline" className="rounded-full" onClick={handleConvertMoney}>
         <RefreshCcw size={14} className="mr-1.5" />
         Converter
+      </Button>
+      <Button size="sm" className="bg-amber-500 text-white hover:bg-amber-600 rounded-full" onClick={handleCryptoMarket}>
+        <Coins size={14} className="mr-1.5" />
+        Comprar Crypto
       </Button>
     </div>
   );

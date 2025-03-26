@@ -13,6 +13,7 @@ import NotFound from "./pages/NotFound";
 import Support from "./pages/Support";
 import Wallet from "./pages/Wallet";
 import Admin from "./pages/Admin";
+import CryptoMarket from "./pages/CryptoMarket";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,7 @@ const App = () => (
               <Route path="/wallet" element={<Wallet />} />
               <Route path="/support" element={<Support />} />
               <Route path="/admin" element={<Admin />} />
+              <Route path="/crypto" element={<CryptoMarket />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
