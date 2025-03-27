@@ -25,6 +25,12 @@ const CryptoConnect: React.FC<CryptoConnectProps> = ({
       description: "A extensão de carteira mais popular para navegadores. Simples e segura."
     },
     {
+      name: "WalletConnect",
+      id: "walletconnect",
+      icon: "https://seeklogo.com/images/W/walletconnect-logo-EE83B50C97-seeklogo.com.png",
+      description: "Conecte com qualquer carteira móvel via QR code. Não precisa de extensão."
+    },
+    {
       name: "Coinbase Wallet",
       id: "coinbase",
       icon: "https://seeklogo.com/images/C/coinbase-coin-logo-C86F46D7B8-seeklogo.com.png",
@@ -40,7 +46,7 @@ const CryptoConnect: React.FC<CryptoConnectProps> = ({
           Para comprar criptomoedas, você precisa conectar uma carteira externa. Escolha uma das opções abaixo:
         </p>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {walletProviders.map((provider) => (
             <WalletProviderCard
               key={provider.id}
