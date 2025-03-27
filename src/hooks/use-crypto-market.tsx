@@ -15,13 +15,19 @@ export function useCryptoMarket() {
     isWalletConnected,
     walletAddress,
     walletProvider,
-    handleWalletConnect
+    chainId,
+    handleWalletConnect,
+    disconnectWallet,
+    checkWalletConnection
   } = useWalletConnection(user?.id);
 
   const {
     assets,
     selectedAsset,
+    assetDetail,
+    chartData,
     isLoading,
+    isDetailLoading,
     loadAssets,
     handleAssetSelect,
     handleRefresh,
@@ -40,7 +46,7 @@ export function useCryptoMarket() {
 
   const handleAssetSelectWithTabChange = (asset: any) => {
     handleAssetSelect(asset);
-    setTab("buy");
+    setTab("detail");
   };
 
   const handleWalletConnectWithTabChange = async (provider: any) => {
@@ -48,6 +54,11 @@ export function useCryptoMarket() {
     if (success) {
       setTab("market");
     }
+  };
+
+  const handleWalletDisconnectWithRefresh = async () => {
+    await disconnectWallet();
+    setTab("connect");
   };
 
   const handlePurchaseWithTabChange = async (amount: number) => {
@@ -63,14 +74,19 @@ export function useCryptoMarket() {
     user,
     assets,
     selectedAsset,
+    assetDetail,
+    chartData,
     isLoading,
+    isDetailLoading,
     tab,
     setTab,
     isWalletConnected,
     walletAddress,
     walletProvider,
+    chainId,
     handleAssetSelect: handleAssetSelectWithTabChange,
     handleWalletConnect: handleWalletConnectWithTabChange,
+    handleWalletDisconnect: handleWalletDisconnectWithRefresh,
     handlePurchase: handlePurchaseWithTabChange,
     handleRefresh,
     authLoading

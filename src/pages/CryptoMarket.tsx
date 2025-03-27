@@ -11,8 +11,11 @@ const CryptoMarket: React.FC = () => {
   const {
     authLoading,
     isLoading,
+    isDetailLoading,
     assets,
     selectedAsset,
+    assetDetail,
+    chartData,
     tab,
     setTab,
     isWalletConnected,
@@ -20,6 +23,7 @@ const CryptoMarket: React.FC = () => {
     walletProvider,
     handleAssetSelect,
     handleWalletConnect,
+    handleWalletDisconnect,
     handlePurchase,
     handleRefresh
   } = useCryptoMarket();
@@ -40,11 +44,15 @@ const CryptoMarket: React.FC = () => {
             setTab={setTab}
             assets={assets}
             selectedAsset={selectedAsset}
+            assetDetail={assetDetail}
+            chartData={chartData}
+            isDetailLoading={isDetailLoading}
             isWalletConnected={isWalletConnected}
             walletAddress={walletAddress}
             walletProvider={walletProvider}
             onAssetSelect={handleAssetSelect}
             onWalletConnect={handleWalletConnect}
+            onWalletDisconnect={handleWalletDisconnect}
             onPurchase={handlePurchase}
           />
         </div>

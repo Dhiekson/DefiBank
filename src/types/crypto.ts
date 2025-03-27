@@ -11,7 +11,7 @@ export interface CryptoAsset {
   logoUrl?: string;
 }
 
-export type WalletProviderType = "metamask" | "coinbase" | "walletconnect" | string;
+export type WalletProviderType = "metamask" | "coinbase" | "walletconnect" | "trustwallet" | string;
 
 export interface WalletProvider {
   name: string;
@@ -26,6 +26,18 @@ export type ExternalWallet = {
   chainId?: number;
   balance?: string;
 };
+
+export interface CryptoExchange {
+  id: string;
+  name: string;
+  year_established: number;
+  country: string;
+  url: string;
+  image: string;
+  trust_score: number;
+  trust_score_rank: number;
+  trade_volume_24h_btc: number;
+}
 
 // Estender a interface Window para adicionar o ethereum
 declare global {

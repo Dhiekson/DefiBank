@@ -5,12 +5,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { WalletProviderType } from '@/types/crypto';
 import WalletConnectProvider from "@walletconnect/web3-provider";
 import Web3 from 'web3';
-import { Buffer } from 'buffer';
-
-// Ensure Buffer is available globally
-if (typeof window !== 'undefined') {
-  window.Buffer = window.Buffer || Buffer;
-}
 
 export function useWalletConnection(userId?: string) {
   const { toast } = useToast();
@@ -18,6 +12,7 @@ export function useWalletConnection(userId?: string) {
   const [walletAddress, setWalletAddress] = useState("");
   const [walletProvider, setWalletProvider] = useState<WalletProviderType | "none">("none");
   const [wcProvider, setWcProvider] = useState<WalletConnectProvider | null>(null);
+  const [chainId, setChainId] = useState<number | null>(null);
 
   useEffect(() => {
     if (userId) {
@@ -26,19 +21,63 @@ export function useWalletConnection(userId?: string) {
   }, [userId]);
 
   useEffect(() => {
+    // Setup MetaMask event listeners if available
+    if (window.ethereum) {
+      // Handle account changes
+      window.ethereum.on('accountsChanged', (accounts: string[]) => {
+        console.log('accountsChanged', accounts);
+        if (accounts.length > 0) {
+          setWalletAddress(accounts[0]);
+          setIsWalletConnected(true);
+        } else {
+          setWalletAddress("");
+          setIsWalletConnected(false);
+          setWalletProvider("none");
+          toast({
+            title: "Carteira desconectada",
+            description: "Sua carteira foi desconectada."
+          });
+        }
+      });
+
+      // Handle chain changes
+      window.ethereum.on('chainChanged', (chainId: string) => {
+        console.log('chainChanged', chainId);
+        setChainId(parseInt(chainId, 16));
+        toast({
+          title: "Rede alterada",
+          description: "A rede da sua carteira foi alterada."
+        });
+      });
+    }
+
     // Cleanup WalletConnect on unmount
     return () => {
       if (wcProvider) {
         wcProvider.disconnect();
       }
+      
+      // Remove MetaMask listeners
+      if (window.ethereum) {
+        window.ethereum.removeAllListeners('accountsChanged');
+        window.ethereum.removeAllListeners('chainChanged');
+      }
     };
-  }, [wcProvider]);
+  }, [wcProvider, toast]);
 
   const checkWalletConnection = async () => {
-    if (window.ethereum && window.ethereum.selectedAddress) {
-      setIsWalletConnected(true);
-      setWalletAddress(window.ethereum.selectedAddress);
-      setWalletProvider("metamask");
+    try {
+      if (window.ethereum && window.ethereum.selectedAddress) {
+        setIsWalletConnected(true);
+        setWalletAddress(window.ethereum.selectedAddress);
+        setWalletProvider("metamask");
+        setChainId(parseInt(window.ethereum.chainId, 16));
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error checking wallet connection:", error);
+      return false;
     }
   };
 
@@ -55,11 +94,13 @@ export function useWalletConnection(userId?: string) {
 
       try {
         const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        const chainId = await window.ethereum.request({ method: 'eth_chainId' });
         
         if (accounts.length > 0) {
           setWalletAddress(accounts[0]);
           setIsWalletConnected(true);
           setWalletProvider("metamask");
+          setChainId(parseInt(chainId, 16));
           
           if (userId) {
             await supabase.from('transactions').insert({
@@ -71,6 +112,7 @@ export function useWalletConnection(userId?: string) {
               metadata: {
                 wallet_address: accounts[0],
                 wallet_provider: 'metamask',
+                chain_id: parseInt(chainId, 16),
                 is_active: true
               }
             });
@@ -94,14 +136,20 @@ export function useWalletConnection(userId?: string) {
     } else if (provider === "walletconnect") {
       try {
         console.log("Initializing WalletConnect...");
-        // Check if Buffer is available
-        console.log("Buffer available:", typeof Buffer !== 'undefined');
         
         // Inicializar o provedor WalletConnect
         const walletConnectProvider = new WalletConnectProvider({
-          infuraId: "27e484dcd9e3efcfd25a83a78777cdf1", // Infura ID públic para testes
+          infuraId: "27e484dcd9e3efcfd25a83a78777cdf1", // Infura ID público para testes
           bridge: "https://bridge.walletconnect.org",
-          // No QRCodeModal property needed - it's handled by WalletConnect internally
+          qrcodeModalOptions: {
+            mobileLinks: [
+              "rainbow",
+              "metamask",
+              "trust",
+              "argent",
+              "imtoken"
+            ],
+          }
         });
         
         console.log("WalletConnect provider created");
@@ -114,12 +162,14 @@ export function useWalletConnection(userId?: string) {
         // Obter a conta conectada
         const web3 = new Web3(walletConnectProvider as any);
         const accounts = await web3.eth.getAccounts();
+        const chainId = await web3.eth.getChainId();
         
         if (accounts.length > 0) {
           setWalletAddress(accounts[0]);
           setIsWalletConnected(true);
           setWalletProvider("walletconnect");
           setWcProvider(walletConnectProvider);
+          setChainId(chainId);
           
           // Configurar o evento de desconexão
           walletConnectProvider.on("disconnect", () => {
@@ -127,6 +177,7 @@ export function useWalletConnection(userId?: string) {
             setWalletAddress("");
             setWalletProvider("none");
             setWcProvider(null);
+            setChainId(null);
             
             toast({
               title: "Carteira desconectada",
@@ -144,6 +195,7 @@ export function useWalletConnection(userId?: string) {
               metadata: {
                 wallet_address: accounts[0],
                 wallet_provider: 'walletconnect',
+                chain_id: chainId,
                 is_active: true
               }
             });
@@ -164,11 +216,9 @@ export function useWalletConnection(userId?: string) {
           variant: "destructive"
         });
       }
-    } else if (provider === "coinbase") {
-      toast({
-        title: "Em breve",
-        description: "A integração com Coinbase Wallet estará disponível em breve!"
-      });
+    } else if (provider === "trustwallet") {
+      // Trust Wallet funciona através do protocolo WalletConnect
+      return handleWalletConnect("walletconnect");
     } else {
       toast({
         title: "Provedor não suportado",
@@ -179,11 +229,32 @@ export function useWalletConnection(userId?: string) {
     return false;
   };
 
+  const disconnectWallet = async () => {
+    if (walletProvider === "walletconnect" && wcProvider) {
+      await wcProvider.disconnect();
+    }
+    
+    setIsWalletConnected(false);
+    setWalletAddress("");
+    setWalletProvider("none");
+    setWcProvider(null);
+    setChainId(null);
+    
+    toast({
+      title: "Carteira desconectada",
+      description: "Sua carteira foi desconectada com sucesso."
+    });
+    
+    return true;
+  };
+
   return {
     isWalletConnected,
     walletAddress,
     walletProvider,
+    chainId,
     handleWalletConnect,
+    disconnectWallet,
     checkWalletConnection
   };
 }

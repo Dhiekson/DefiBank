@@ -6,6 +6,7 @@ import ConnectedWallet from './ConnectedWallet';
 
 interface CryptoConnectProps {
   onConnect: (provider: WalletProviderType) => Promise<void>;
+  onDisconnect: () => Promise<void>;
   isConnected: boolean;
   walletAddress: string;
   walletProvider: WalletProviderType | "none";
@@ -13,6 +14,7 @@ interface CryptoConnectProps {
 
 const CryptoConnect: React.FC<CryptoConnectProps> = ({
   onConnect,
+  onDisconnect,
   isConnected,
   walletAddress,
   walletProvider,
@@ -31,19 +33,31 @@ const CryptoConnect: React.FC<CryptoConnectProps> = ({
       description: "Conecte com qualquer carteira móvel via QR code. Não precisa de extensão."
     },
     {
-      name: "Coinbase Wallet",
-      id: "coinbase",
-      icon: "https://seeklogo.com/images/C/coinbase-coin-logo-C86F46D7B8-seeklogo.com.png",
-      description: "Carteira com suporte da Coinbase, uma das maiores exchanges do mundo."
+      name: "Trust Wallet",
+      id: "trustwallet",
+      icon: "https://trustwallet.com/assets/images/favicon.png",
+      description: "Carteira móvel multi-blockchain. Popular para aplicativos DeFi e NFTs."
     }
   ];
 
   return (
     <div className="space-y-6">
+      {isConnected && (
+        <ConnectedWallet 
+          walletAddress={walletAddress} 
+          walletProvider={walletProvider}
+          onDisconnect={onDisconnect} 
+        />
+      )}
+      
       <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
-        <h2 className="text-xl font-semibold mb-4">Conecte sua carteira</h2>
+        <h2 className="text-xl font-semibold mb-4">
+          {isConnected ? 'Trocar carteira' : 'Conecte sua carteira'}
+        </h2>
         <p className="text-gray-600 mb-6">
-          Para comprar criptomoedas, você precisa conectar uma carteira externa. Escolha uma das opções abaixo:
+          {isConnected 
+            ? 'Você já está conectado, mas pode trocar para outra carteira se desejar:'
+            : 'Para comprar criptomoedas, você precisa conectar uma carteira externa. Escolha uma das opções abaixo:'}
         </p>
         
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -58,13 +72,6 @@ const CryptoConnect: React.FC<CryptoConnectProps> = ({
           ))}
         </div>
       </div>
-      
-      {isConnected && (
-        <ConnectedWallet 
-          walletAddress={walletAddress} 
-          walletProvider={walletProvider} 
-        />
-      )}
     </div>
   );
 };
