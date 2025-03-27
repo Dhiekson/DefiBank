@@ -4,7 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import CryptoConnect from '@/components/crypto/CryptoConnect';
 import CryptoAssetList from '@/components/crypto/CryptoAssetList';
 import CryptoPurchaseForm from '@/components/crypto/CryptoPurchaseForm';
-import { CryptoAsset } from '@/types/crypto';
+import { CryptoAsset, WalletProviderType } from '@/types/crypto';
 
 interface CryptoMarketTabsProps {
   tab: string;
@@ -13,9 +13,9 @@ interface CryptoMarketTabsProps {
   selectedAsset: CryptoAsset | null;
   isWalletConnected: boolean;
   walletAddress: string;
-  walletProvider: "metamask" | "coinbase" | "none";
+  walletProvider: WalletProviderType | "none";
   onAssetSelect: (asset: CryptoAsset) => void;
-  onWalletConnect: (provider: "metamask" | "coinbase") => Promise<void>;
+  onWalletConnect: (provider: WalletProviderType) => Promise<void>;
   onPurchase: (amount: number) => Promise<void>;
 }
 

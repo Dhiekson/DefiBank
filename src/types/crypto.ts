@@ -11,16 +11,18 @@ export interface CryptoAsset {
   logoUrl?: string;
 }
 
+export type WalletProviderType = "metamask" | "coinbase" | "walletconnect" | string;
+
 export interface WalletProvider {
   name: string;
-  id: "metamask" | "coinbase"; // Removed walletconnect for now
+  id: WalletProviderType;
   icon: string;
   description: string;
 }
 
 export type ExternalWallet = {
   address: string;
-  provider: "metamask" | "coinbase"; // Removed walletconnect for now
+  provider: WalletProviderType;
   chainId?: number;
   balance?: string;
 };
