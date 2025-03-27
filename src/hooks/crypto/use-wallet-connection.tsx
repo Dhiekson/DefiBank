@@ -91,7 +91,7 @@ export function useWalletConnection(userId?: string) {
         const walletConnectProvider = new WalletConnectProvider({
           infuraId: "27e484dcd9e3efcfd25a83a78777cdf1", // Infura ID públic para testes
           bridge: "https://bridge.walletconnect.org",
-          qrcodeModal: true,
+          // Don't set qrcodeModal property here, it's handled internally by WalletConnect
         });
         
         // Conectar ao WalletConnect
