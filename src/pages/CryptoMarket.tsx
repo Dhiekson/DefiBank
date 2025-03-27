@@ -110,12 +110,19 @@ const CryptoMarket: React.FC = () => {
           setIsWalletConnected(true);
           setWalletProvider("metamask");
           
-          // Registrar wallet na base de dados
-          await supabase.from('user_wallets').upsert({
+          // Registrar wallet na tabela transactions como metadata
+          // Em vez de usar user_wallets, vamos armazenar como uma transação com metadata
+          await supabase.from('transactions').insert({
             user_id: user?.id,
-            wallet_address: accounts[0],
-            wallet_provider: 'metamask',
-            is_active: true
+            type: 'wallet_connect',
+            amount: 0,
+            description: 'Conexão de carteira externa',
+            status: 'completed',
+            metadata: {
+              wallet_address: accounts[0],
+              wallet_provider: 'metamask',
+              is_active: true
+            }
           });
           
           toast({

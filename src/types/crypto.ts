@@ -13,14 +13,14 @@ export interface CryptoAsset {
 
 export interface WalletProvider {
   name: string;
-  id: "metamask" | "coinbase" | "walletconnect";
+  id: "metamask" | "coinbase"; // Removed walletconnect for now
   icon: string;
   description: string;
 }
 
 export type ExternalWallet = {
   address: string;
-  provider: "metamask" | "coinbase" | "walletconnect";
+  provider: "metamask" | "coinbase"; // Removed walletconnect for now
   chainId?: number;
   balance?: string;
 };
