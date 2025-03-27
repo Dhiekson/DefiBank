@@ -12,7 +12,8 @@
       // Polyfills for WalletConnect
       window.global = window;
       window.process = { env: {} };
-      window.Buffer = window.Buffer || require('buffer').Buffer;
+      var Buffer = require('buffer/').Buffer;
+      window.Buffer = Buffer;
     </script>
   </head>
 

@@ -1,10 +1,15 @@
-
 import { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { WalletProviderType } from '@/types/crypto';
 import WalletConnectProvider from "@walletconnect/web3-provider";
 import Web3 from 'web3';
+import { Buffer } from 'buffer';
+
+// Ensure Buffer is available globally
+if (typeof window !== 'undefined') {
+  window.Buffer = window.Buffer || Buffer;
+}
 
 export function useWalletConnection(userId?: string) {
   const { toast } = useToast();
@@ -87,15 +92,23 @@ export function useWalletConnection(userId?: string) {
       }
     } else if (provider === "walletconnect") {
       try {
+        console.log("Initializing WalletConnect...");
+        // Check if Buffer is available
+        console.log("Buffer available:", typeof Buffer !== 'undefined');
+        
         // Inicializar o provedor WalletConnect
         const walletConnectProvider = new WalletConnectProvider({
           infuraId: "27e484dcd9e3efcfd25a83a78777cdf1", // Infura ID públic para testes
           bridge: "https://bridge.walletconnect.org",
-          // Don't set qrcodeModal property here, it's handled internally by WalletConnect
+          // No QRCodeModal property needed - it's handled by WalletConnect internally
         });
+        
+        console.log("WalletConnect provider created");
         
         // Conectar ao WalletConnect
         await walletConnectProvider.enable();
+        
+        console.log("WalletConnect enabled");
         
         // Obter a conta conectada
         const web3 = new Web3(walletConnectProvider as any);
