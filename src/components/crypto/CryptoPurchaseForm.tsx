@@ -1,13 +1,17 @@
 
 import React, { useState, useEffect } from 'react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Slider } from '@/components/ui/slider';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CryptoAsset } from '@/types/crypto';
-import { ArrowLeft, Info, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { Slider } from "@/components/ui/slider";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
+import { ArrowRight, AlertCircle, Check, RefreshCw } from 'lucide-react';
+import { useWeb3 } from '@/contexts/Web3Context';
 import { useToast } from '@/hooks/use-toast';
+import { motion } from 'framer-motion';
+import { Tab, Tabs, TabList, TabPanel } from '@/components/ui/tabs-simple';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface CryptoPurchaseFormProps {
   asset: CryptoAsset;
@@ -22,64 +26,218 @@ const CryptoPurchaseForm: React.FC<CryptoPurchaseFormProps> = ({
   isWalletConnected,
   onPurchase
 }) => {
-  const [amount, setAmount] = useState<number>(0.01);
-  const [fiatAmount, setFiatAmount] = useState<number>(0);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<"buy" | "sell">("buy");
+  const [amount, setAmount] = useState<number>(1);
+  const [amountInput, setAmountInput] = useState<string>("1");
+  const [usdValue, setUsdValue] = useState<number>(0);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [tabIndex, setTabIndex] = useState(0); // 0 para compra, 1 para venda
+  const [userAssetBalance, setUserAssetBalance] = useState<number>(0);
+  const [gasPrice, setGasPrice] = useState<string>("0.001");
+  const [slippage, setSlippage] = useState<number>(0.5); // 0.5% padrão
   const { toast } = useToast();
-  
+  const { user } = useAuth();
+  const { web3, account, balance, chainId, connected } = useWeb3();
+
   useEffect(() => {
-    if (asset) {
-      setFiatAmount(amount * asset.price);
+    // Calcular valor em USD sempre que o montante mudar
+    const calculatedValue = amount * asset.price;
+    setUsdValue(calculatedValue);
+  }, [amount, asset.price]);
+
+  useEffect(() => {
+    if (user && asset.id) {
+      fetchUserBalance();
     }
-  }, [amount, asset]);
-  
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
-  };
-  
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseFloat(e.target.value);
-    if (!isNaN(value) && value > 0) {
-      setAmount(value);
-      setFiatAmount(value * asset.price);
-    }
-  };
-  
-  const handleFiatAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = parseFloat(e.target.value);
-    if (!isNaN(value) && value > 0) {
-      setFiatAmount(value);
-      setAmount(value / asset.price);
-    }
-  };
-  
-  const handleSliderChange = (value: number[]) => {
-    if (activeTab === "buy") {
-      // For buy, slider goes from 0.0001 to 10 BTC (or equivalent)
-      const cryptoAmount = parseFloat((value[0] / 100 * 10).toFixed(8));
-      setAmount(cryptoAmount);
-      setFiatAmount(cryptoAmount * asset.price);
-    } else {
-      // For sell, you can only sell what you have - mocked to 1 BTC max for demo
-      const cryptoAmount = parseFloat((value[0] / 100 * 1).toFixed(8));
-      setAmount(cryptoAmount);
-      setFiatAmount(cryptoAmount * asset.price);
-    }
-  };
-  
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  }, [user, asset.id]);
+
+  const fetchUserBalance = async () => {
+    if (!user) return;
     
+    try {
+      const { data, error } = await supabase
+        .from('user_assets')
+        .select('amount')
+        .eq('user_id', user.id)
+        .eq('asset_id', asset.id)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') { // PGRST116 = No data found
+        throw error;
+      }
+      
+      setUserAssetBalance(data?.amount || 0);
+    } catch (error) {
+      console.error('Erro ao buscar saldo do usuário:', error);
+    }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setAmountInput(value);
+    
+    const parsedValue = parseFloat(value);
+    if (!isNaN(parsedValue) && parsedValue >= 0) {
+      setAmount(parsedValue);
+    }
+  };
+
+  const handleSliderChange = (value: number[]) => {
+    const newAmount = value[0];
+    setAmount(newAmount);
+    setAmountInput(newAmount.toString());
+  };
+
+  const handleMaxClick = () => {
+    if (tabIndex === 0) {
+      // Max para compra: basado no saldo em ETH/BNB/etc e preço do ativo
+      if (web3 && balance) {
+        // Deixar 10% do saldo para gas
+        const maxTokensAffordable = parseFloat(balance) * 0.9 / asset.price;
+        setAmount(Math.floor(maxTokensAffordable * 1000) / 1000); // Arredondar para 3 casas decimais
+        setAmountInput(amount.toString());
+      }
+    } else {
+      // Max para venda: baseado no saldo do usuário
+      setAmount(userAssetBalance);
+      setAmountInput(userAssetBalance.toString());
+    }
+  };
+
+  const handleBuy = async () => {
     if (!isWalletConnected) {
       toast({
         title: "Carteira não conectada",
-        description: "Por favor, conecte sua carteira antes de continuar.",
+        description: "Por favor, conecte sua carteira antes de comprar.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!user) {
+      toast({
+        title: "Usuário não autenticado",
+        description: "Você precisa estar logado para realizar esta operação.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsProcessing(true);
+    
+    try {
+      // Aqui seria a integração real com um DEX como Uniswap ou 1inch
+      // Para fins de simulação, vamos apenas registrar a transação
+      
+      const gasFeeEth = parseFloat(gasPrice);
+      const totalCostEth = usdValue / (asset.price / parseFloat(balance)) + gasFeeEth;
+      
+      // Verificar se tem saldo suficiente
+      if (parseFloat(balance) < totalCostEth) {
+        toast({
+          title: "Saldo insuficiente",
+          description: `Você precisa de pelo menos ${totalCostEth.toFixed(6)} ${chainId === 56 ? 'BNB' : 'ETH'} para esta transação.`,
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Simular delay de processamento
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Registrar transação no Supabase
+      const { data: txn, error: txnError } = await supabase
+        .from('transactions')
+        .insert({
+          user_id: user.id,
+          type: 'conversion',
+          amount: amount * asset.price,
+          currency: 'USD',
+          description: `Compra de ${amount} ${asset.symbol}`,
+          status: 'completed',
+          metadata: {
+            transaction_type: 'buy',
+            asset_id: asset.id,
+            asset_symbol: asset.symbol,
+            asset_amount: amount,
+            wallet_address: account,
+            chain_id: chainId,
+            price_per_unit: asset.price,
+            gas_price: gasPrice,
+            slippage: slippage
+          }
+        })
+        .select()
+        .single();
+      
+      if (txnError) throw txnError;
+      
+      // Atualizar o saldo do usuário
+      const { data: existingAsset, error: assetError } = await supabase
+        .from('user_assets')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('asset_id', asset.id)
+        .maybeSingle();
+      
+      if (assetError) throw assetError;
+      
+      if (existingAsset) {
+        // Atualizar saldo existente
+        await supabase
+          .from('user_assets')
+          .update({
+            amount: existingAsset.amount + amount,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingAsset.id);
+      } else {
+        // Criar novo registro
+        await supabase
+          .from('user_assets')
+          .insert({
+            user_id: user.id,
+            asset_id: asset.id,
+            amount: amount
+          });
+      }
+      
+      // Atualizar o saldo do usuário na UI
+      setUserAssetBalance(prev => prev + amount);
+      
+      toast({
+        title: "Compra concluída",
+        description: `Você comprou ${amount} ${asset.symbol} com sucesso!`
+      });
+      
+      // Notificar componente pai
+      onPurchase(amount);
+      
+    } catch (error: any) {
+      console.error('Erro ao processar compra:', error);
+      toast({
+        title: "Erro na transação",
+        description: error.message || "Não foi possível completar sua compra.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleSell = async () => {
+    if (!isWalletConnected) {
+      toast({
+        title: "Carteira não conectada",
+        description: "Por favor, conecte sua carteira antes de vender.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    if (!user) {
+      toast({
+        title: "Usuário não autenticado",
+        description: "Você precisa estar logado para realizar esta operação.",
         variant: "destructive"
       });
       return;
@@ -87,204 +245,295 @@ const CryptoPurchaseForm: React.FC<CryptoPurchaseFormProps> = ({
     
     if (amount <= 0) {
       toast({
-        title: "Valor inválido",
-        description: "Por favor, insira um valor maior que zero.",
+        title: "Quantidade inválida",
+        description: "A quantidade a ser vendida deve ser maior que zero.",
         variant: "destructive"
       });
       return;
     }
     
-    setIsSubmitting(true);
-    try {
-      if (activeTab === "buy") {
-        await onPurchase(amount);
-        toast({
-          title: "Compra realizada!",
-          description: `Você comprou ${amount} ${asset.symbol} por ${formatCurrency(fiatAmount)}.`
-        });
-      } else {
-        // Mock sell functionality for now
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        toast({
-          title: "Venda realizada!",
-          description: `Você vendeu ${amount} ${asset.symbol} por ${formatCurrency(fiatAmount)}.`
-        });
-      }
-    } catch (error) {
-      console.error('Erro ao processar operação:', error);
+    if (amount > userAssetBalance) {
       toast({
-        title: "Erro na operação",
-        description: "Não foi possível processar sua operação no momento.",
+        title: "Saldo insuficiente",
+        description: `Você possui apenas ${userAssetBalance} ${asset.symbol}.`,
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsProcessing(true);
+    
+    try {
+      // Simular delay de processamento
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Registrar transação no Supabase
+      const { data: txn, error: txnError } = await supabase
+        .from('transactions')
+        .insert({
+          user_id: user.id,
+          type: 'conversion',
+          amount: amount * asset.price,
+          currency: 'USD',
+          description: `Venda de ${amount} ${asset.symbol}`,
+          status: 'completed',
+          metadata: {
+            transaction_type: 'sell',
+            asset_id: asset.id,
+            asset_symbol: asset.symbol,
+            asset_amount: -amount, // Negativo para indicar venda
+            wallet_address: account,
+            chain_id: chainId,
+            price_per_unit: asset.price,
+            gas_price: gasPrice,
+            slippage: slippage
+          }
+        })
+        .select()
+        .single();
+      
+      if (txnError) throw txnError;
+      
+      // Atualizar o saldo do usuário
+      const { data: existingAsset, error: assetError } = await supabase
+        .from('user_assets')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('asset_id', asset.id)
+        .single();
+      
+      if (assetError) throw assetError;
+      
+      const newAmount = existingAsset.amount - amount;
+      
+      if (newAmount <= 0) {
+        // Remover o ativo se o saldo ficar zerado
+        await supabase
+          .from('user_assets')
+          .delete()
+          .eq('id', existingAsset.id);
+      } else {
+        // Atualizar saldo
+        await supabase
+          .from('user_assets')
+          .update({
+            amount: newAmount,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingAsset.id);
+      }
+      
+      // Atualizar o saldo do usuário na UI
+      setUserAssetBalance(prev => prev - amount);
+      
+      toast({
+        title: "Venda concluída",
+        description: `Você vendeu ${amount} ${asset.symbol} com sucesso!`
+      });
+      
+      // Notificar componente pai
+      onPurchase(-amount);
+      
+    } catch (error: any) {
+      console.error('Erro ao processar venda:', error);
+      toast({
+        title: "Erro na transação",
+        description: error.message || "Não foi possível completar sua venda.",
         variant: "destructive"
       });
     } finally {
-      setIsSubmitting(false);
+      setIsProcessing(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <Card className="border-2 border-primary/20">
-        <CardHeader>
-          <div className="flex items-center gap-3 mb-2">
-            {asset.logoUrl && <img src={asset.logoUrl} alt={asset.name} className="w-8 h-8" />}
-            <CardTitle>{asset.name} ({asset.symbol})</CardTitle>
-          </div>
-          <CardDescription>
-            Preço atual: <span className="font-semibold">{formatCurrency(asset.price)}</span>
-            <span className={`ml-2 text-sm ${parseFloat(asset.change24h) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {parseFloat(asset.change24h) >= 0 ? (
-                <><ArrowUpRight size={14} className="inline mr-1" /></>
-              ) : (
-                <><ArrowDownRight size={14} className="inline mr-1" /></>
-              )}
-              {Math.abs(parseFloat(asset.change24h))}%
-            </span>
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as "buy" | "sell")} className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="buy">Comprar</TabsTrigger>
-              <TabsTrigger value="sell">Vender</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="buy" className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Quero gastar (BRL)</label>
-                <Input
-                  type="number"
-                  value={fiatAmount.toFixed(2)}
-                  onChange={handleFiatAmountChange}
-                  step="1"
-                  min="1"
-                  className="text-lg"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Vou receber ({asset.symbol})</label>
-                <Input
-                  type="number"
-                  value={amount}
-                  onChange={handleAmountChange}
-                  step="0.0001"
-                  min="0.0001"
-                  className="text-lg"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Ajuste a quantidade</label>
-                <Slider
-                  defaultValue={[1]}
-                  max={100}
-                  step={1}
-                  value={[(amount / 10) * 100]}
-                  onValueChange={handleSliderChange}
-                />
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>0.0001 {asset.symbol}</span>
-                  <span>10 {asset.symbol}</span>
-                </div>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="sell" className="space-y-4 pt-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Quero vender ({asset.symbol})</label>
-                <Input
-                  type="number"
-                  value={amount}
-                  onChange={handleAmountChange}
-                  step="0.0001"
-                  min="0.0001"
-                  className="text-lg"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Vou receber (BRL)</label>
-                <Input
-                  type="number"
-                  value={fiatAmount.toFixed(2)}
-                  onChange={handleFiatAmountChange}
-                  step="1"
-                  min="1"
-                  className="text-lg"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Ajuste a quantidade</label>
-                <Slider
-                  defaultValue={[1]}
-                  max={100}
-                  step={1}
-                  value={[amount * 100]}
-                  onValueChange={handleSliderChange}
-                />
-                <div className="flex justify-between text-xs text-gray-500">
-                  <span>0.0001 {asset.symbol}</span>
-                  <span>1 {asset.symbol}</span>
-                </div>
-              </div>
-            </TabsContent>
-          </Tabs>
-          
-          <div className="rounded-lg bg-gray-50 p-4">
-            <div className="flex justify-between mb-2">
-              <span className="text-gray-600">
-                {activeTab === "buy" ? "Subtotal:" : "Você receberá:"}
-              </span>
-              <span>{formatCurrency(fiatAmount)}</span>
-            </div>
-            <div className="flex justify-between mb-2">
-              <span className="text-gray-600">Taxa de rede (estimativa):</span>
-              <span>{formatCurrency(fiatAmount * 0.005)}</span>
-            </div>
-            <div className="flex justify-between font-medium pt-2 border-t">
-              <span>{activeTab === "buy" ? "Total a pagar:" : "Total a receber:"}</span>
-              <span>
-                {activeTab === "buy" 
-                  ? formatCurrency(fiatAmount * 1.005) 
-                  : formatCurrency(fiatAmount * 0.995)}
-              </span>
-            </div>
-          </div>
-          
-          {isWalletConnected && (
-            <div className="text-sm flex items-start gap-2">
-              <Info size={16} className="text-gray-500 mt-0.5" />
-              <p className="text-gray-600">
-                {activeTab === "buy" 
-                  ? `Ao confirmar essa compra, você autoriza a transferência de ${formatCurrency(fiatAmount * 1.005)} para receber ${amount} ${asset.symbol} em sua carteira no endereço ${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}.`
-                  : `Ao confirmar essa venda, você autoriza a transferência de ${amount} ${asset.symbol} da sua carteira ${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)} em troca de ${formatCurrency(fiatAmount * 0.995)}.`
-                }
-              </p>
-            </div>
+    <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          {asset.logoUrl && (
+            <img src={asset.logoUrl} alt={asset.name} className="w-10 h-10 rounded-full" />
           )}
-        </CardContent>
-        <CardFooter className="flex flex-col sm:flex-row gap-2">
-          <Button type="button" variant="outline" className="sm:flex-1" onClick={() => history.back()}>
-            <ArrowLeft size={16} className="mr-2" />
-            Voltar
-          </Button>
-          <Button 
-            type="submit" 
-            className={`sm:flex-1 ${activeTab === "buy" ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700"}`} 
-            disabled={isSubmitting || !isWalletConnected || amount <= 0}
+          <div>
+            <h2 className="text-xl font-semibold">{asset.name}</h2>
+            <p className="text-sm text-gray-600">{asset.symbol}</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-sm text-gray-600">Preço atual</p>
+          <p className="text-lg font-semibold">
+            ${asset.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 8 })}
+          </p>
+        </div>
+      </div>
+
+      <Tabs selectedIndex={tabIndex} onChange={(index) => setTabIndex(index)}>
+        <TabList className="flex gap-2 mb-6">
+          <Tab
+            selected={tabIndex === 0}
+            className="flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-colors focus:outline-none"
           >
-            {isSubmitting 
-              ? "Processando..." 
-              : activeTab === "buy" 
-                ? `Comprar ${asset.symbol}` 
-                : `Vender ${asset.symbol}`
-            }
-          </Button>
-        </CardFooter>
-      </Card>
-    </form>
+            Comprar
+          </Tab>
+          <Tab
+            selected={tabIndex === 1}
+            className="flex-1 px-4 py-2 text-sm font-medium rounded-lg transition-colors focus:outline-none"
+          >
+            Vender
+          </Tab>
+        </TabList>
+
+        <TabPanel>
+          {/* Painel de Compra */}
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm text-gray-600 mb-1 block">
+                Quantidade de {asset.symbol}
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  value={amountInput}
+                  onChange={handleInputChange}
+                  min="0"
+                  step="0.000001"
+                  className="flex-1"
+                />
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleMaxClick}
+                >
+                  MAX
+                </Button>
+              </div>
+            </div>
+
+            <Slider
+              defaultValue={[1]}
+              min={0}
+              max={100}
+              step={0.1}
+              value={[amount]}
+              onValueChange={handleSliderChange}
+            />
+
+            <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Valor Total (USD)</span>
+                <span className="font-medium">${usdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Taxa de Gás Estimada</span>
+                <span className="font-medium">{gasPrice} ETH</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Slippage</span>
+                <span className="font-medium">{slippage}%</span>
+              </div>
+            </div>
+
+            <Button
+              className="w-full"
+              onClick={handleBuy}
+              disabled={isProcessing || !isWalletConnected || amount <= 0}
+            >
+              {isProcessing ? (
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <ArrowRight className="mr-2 h-4 w-4" />
+              )}
+              {isProcessing ? "Processando..." : "Comprar"}
+            </Button>
+
+            {!isWalletConnected && (
+              <div className="flex items-center gap-2 text-amber-600 text-sm mt-2">
+                <AlertCircle size={16} />
+                <span>Conecte sua carteira para comprar</span>
+              </div>
+            )}
+          </div>
+        </TabPanel>
+
+        <TabPanel>
+          {/* Painel de Venda */}
+          <div className="space-y-4">
+            <div>
+              <div className="flex justify-between mb-1">
+                <label className="text-sm text-gray-600">
+                  Quantidade de {asset.symbol}
+                </label>
+                <span className="text-sm text-gray-600">
+                  Saldo: {userAssetBalance} {asset.symbol}
+                </span>
+              </div>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  value={amountInput}
+                  onChange={handleInputChange}
+                  min="0"
+                  max={userAssetBalance}
+                  step="0.000001"
+                  className="flex-1"
+                />
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleMaxClick}
+                >
+                  MAX
+                </Button>
+              </div>
+            </div>
+
+            <Slider
+              defaultValue={[0]}
+              min={0}
+              max={userAssetBalance}
+              step={0.1}
+              value={[amount]}
+              onValueChange={handleSliderChange}
+            />
+
+            <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Valor Total (USD)</span>
+                <span className="font-medium">${usdValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Taxa de Gás Estimada</span>
+                <span className="font-medium">{gasPrice} ETH</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-600">Slippage</span>
+                <span className="font-medium">{slippage}%</span>
+              </div>
+            </div>
+
+            <Button
+              className="w-full"
+              onClick={handleSell}
+              disabled={isProcessing || !isWalletConnected || amount <= 0 || amount > userAssetBalance}
+              variant="destructive"
+            >
+              {isProcessing ? (
+                <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <ArrowRight className="mr-2 h-4 w-4" />
+              )}
+              {isProcessing ? "Processando..." : "Vender"}
+            </Button>
+
+            {!isWalletConnected && (
+              <div className="flex items-center gap-2 text-amber-600 text-sm mt-2">
+                <AlertCircle size={16} />
+                <span>Conecte sua carteira para vender</span>
+              </div>
+            )}
+          </div>
+        </TabPanel>
+      </Tabs>
+    </div>
   );
 };
 
