@@ -2,11 +2,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Menu, X, Home, CreditCard, Building2, Wallet, MessageSquare, UserCog } from 'lucide-react';
+import { Menu, X, Home, CreditCard, Building2, Wallet, MessageSquare, UserCog, Settings, Bitcoin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import UserProfile from '@/components/UserProfile';
 import { useAuth } from '@/contexts/AuthContext';
 import useMobile from '@/hooks/use-mobile';
+import NavMenu from '@/components/NavMenu';
 
 const Navbar: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -57,9 +58,21 @@ const Navbar: React.FC = () => {
       requiresAuth: true,
     },
     {
+      path: '/crypto',
+      name: 'Criptomoedas',
+      icon: <Bitcoin size={16} className="mr-2" />,
+      requiresAuth: true,
+    },
+    {
       path: '/transactions',
       name: 'Transações',
       icon: <CreditCard size={16} className="mr-2" />,
+      requiresAuth: true,
+    },
+    {
+      path: '/account',
+      name: 'Minha Conta',
+      icon: <Settings size={16} className="mr-2" />,
       requiresAuth: true,
     },
     {
@@ -97,19 +110,7 @@ const Navbar: React.FC = () => {
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex space-x-1">
-            {filteredRoutes.map((route) => (
-              <Link key={route.path} to={route.path}>
-                <Button 
-                  variant={location.pathname === route.path ? "default" : "ghost"} 
-                  className={`flex items-center ${location.pathname === route.path ? 'bg-bank-blue text-white' : 'text-bank-navy'}`}
-                >
-                  {route.icon}
-                  {route.name}
-                </Button>
-              </Link>
-            ))}
-          </nav>
+          <NavMenu />
 
           {/* User Profile */}
           <div className="hidden md:flex items-center">

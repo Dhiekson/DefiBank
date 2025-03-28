@@ -28,10 +28,13 @@ export function useCryptoMarket() {
     chartData,
     isLoading,
     isDetailLoading,
+    hasMore,
     loadAssets,
+    loadMoreAssets,
     handleAssetSelect,
     handleRefresh,
-    setSelectedAsset
+    setSelectedAsset,
+    searchAssets
   } = useCryptoAssets(user?.id);
 
   const { handlePurchase } = useCryptoPurchase(user?.id);
@@ -41,6 +44,7 @@ export function useCryptoMarket() {
       navigate('/auth');
     } else if (user) {
       loadAssets();
+      checkWalletConnection();
     }
   }, [user, authLoading, navigate]);
 
@@ -80,6 +84,7 @@ export function useCryptoMarket() {
     isDetailLoading,
     tab,
     setTab,
+    hasMore,
     isWalletConnected,
     walletAddress,
     walletProvider,
@@ -89,6 +94,8 @@ export function useCryptoMarket() {
     handleWalletDisconnect: handleWalletDisconnectWithRefresh,
     handlePurchase: handlePurchaseWithTabChange,
     handleRefresh,
+    loadMoreAssets,
+    searchAssets,
     authLoading
   };
 }

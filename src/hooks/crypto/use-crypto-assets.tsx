@@ -3,7 +3,12 @@ import { useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { CryptoAsset } from '@/types/crypto';
-import { fetchCryptoAssets, fetchCryptoAssetDetail, fetchCryptoAssetChart } from '@/services/crypto-api';
+import { 
+  fetchCryptoAssets, 
+  fetchCryptoAssetDetail, 
+  fetchCryptoAssetChart, 
+  fetchAllCryptoCurrencies 
+} from '@/services/crypto-api';
 
 export function useCryptoAssets(userId?: string) {
   const { toast } = useToast();
@@ -13,12 +18,14 @@ export function useCryptoAssets(userId?: string) {
   const [chartData, setChartData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
 
   const loadAssets = async () => {
     setIsLoading(true);
     try {
       // Carregar ativos da API externa
-      const cryptoAssets = await fetchCryptoAssets(20);
+      const cryptoAssets = await fetchCryptoAssets(100);
       setAssets(cryptoAssets);
       
       // Recuperar ativos do usuário do Supabase para mostrar os que ele já possui
@@ -53,6 +60,30 @@ export function useCryptoAssets(userId?: string) {
     }
   };
 
+  const loadMoreAssets = async () => {
+    if (isLoading || !hasMore) return;
+    
+    try {
+      const nextPage = page + 1;
+      const moreAssets = await fetchAllCryptoCurrencies(nextPage, 100);
+      
+      if (moreAssets.length === 0) {
+        setHasMore(false);
+        return;
+      }
+      
+      setAssets(prevAssets => [...prevAssets, ...moreAssets]);
+      setPage(nextPage);
+    } catch (error: any) {
+      console.error('Erro ao carregar mais ativos:', error.message);
+      toast({
+        title: "Erro ao carregar mais ativos",
+        description: "Não foi possível carregar mais criptomoedas.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const handleAssetSelect = async (asset: CryptoAsset) => {
     setSelectedAsset(asset);
     loadAssetDetail(asset.id);
@@ -66,7 +97,7 @@ export function useCryptoAssets(userId?: string) {
       setAssetDetail(detail);
       
       // Carregar dados do gráfico
-      const chart = await fetchCryptoAssetChart(assetId, 7);
+      const chart = await fetchCryptoAssetChart(assetId, 30);
       setChartData(chart);
       
     } catch (error: any) {
@@ -93,6 +124,20 @@ export function useCryptoAssets(userId?: string) {
     });
   };
 
+  const searchAssets = (query: string) => {
+    if (!query) {
+      loadAssets();
+      return;
+    }
+    
+    const filtered = assets.filter(asset => 
+      asset.name.toLowerCase().includes(query.toLowerCase()) || 
+      asset.symbol.toLowerCase().includes(query.toLowerCase())
+    );
+    
+    setAssets(filtered);
+  };
+
   return {
     assets,
     selectedAsset,
@@ -100,9 +145,12 @@ export function useCryptoAssets(userId?: string) {
     chartData,
     isLoading,
     isDetailLoading,
+    hasMore,
     loadAssets,
+    loadMoreAssets,
     handleAssetSelect,
     handleRefresh,
-    setSelectedAsset
+    setSelectedAsset,
+    searchAssets
   };
 }

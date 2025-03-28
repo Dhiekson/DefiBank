@@ -16,6 +16,8 @@ interface CryptoMarketTabsProps {
   assetDetail: any;
   chartData: any;
   isDetailLoading: boolean;
+  isLoading: boolean;
+  hasMore: boolean;
   isWalletConnected: boolean;
   walletAddress: string;
   walletProvider: WalletProviderType | "none";
@@ -23,6 +25,9 @@ interface CryptoMarketTabsProps {
   onWalletConnect: (provider: WalletProviderType) => Promise<void>;
   onWalletDisconnect: () => Promise<void>;
   onPurchase: (amount: number) => Promise<void>;
+  onLoadMore: () => Promise<void>;
+  onSearch: (term: string) => void;
+  onRefresh: () => void;
 }
 
 const CryptoMarketTabs: React.FC<CryptoMarketTabsProps> = ({
@@ -33,13 +38,18 @@ const CryptoMarketTabs: React.FC<CryptoMarketTabsProps> = ({
   assetDetail,
   chartData,
   isDetailLoading,
+  isLoading,
+  hasMore,
   isWalletConnected,
   walletAddress,
   walletProvider,
   onAssetSelect,
   onWalletConnect,
   onWalletDisconnect,
-  onPurchase
+  onPurchase,
+  onLoadMore,
+  onSearch,
+  onRefresh
 }) => {
   // Função para lidar com a compra de um ativo específico
   const handleBuyAsset = () => {
@@ -75,6 +85,11 @@ const CryptoMarketTabs: React.FC<CryptoMarketTabsProps> = ({
         <CryptoAssetList 
           assets={assets} 
           onAssetSelect={onAssetSelect}
+          onLoadMore={onLoadMore}
+          hasMore={hasMore}
+          isLoading={isLoading}
+          onSearch={onSearch}
+          onRefresh={onRefresh}
         />
       </TabsContent>
       
